@@ -6,10 +6,10 @@ Supports motion detection and streaming from ONVIF-compliant IP cameras
 - SmartThings account
 - SmartThings mobile app
 - ONVIF-compliant IP camera supporting **Profile S** (Streaming) 
+- Reolink Doorbell functionality
 ## Installation Steps
 Use my shared projects Edge channel to complete these steps:
-1. Enroll hub in my shared test driver Edge channel:  https://bestow-regional.api.smartthings.com/invite/Q1jP7BqnNNlL
-2. Choose to install driver 'ONVIF Video Camera V1'
+1. Enroll hub in my shared test driver Edge channel:  Not Ready
 
 ### Camera device discovery and SmartThings device creation
 Once the driver is installed to your hub, use the SmartThings mobile app to initiate an Add device -> Scan nearby devices.  Your ONVIF-compliant IP cameras will be discovered and SmartThings devices added to the 'No room assigned' room OR the room where your SmartThings hub device is located.
@@ -20,12 +20,15 @@ Note:  If a camera cannot be discovered, it could be due to any of these reasons
 * it is on a different subnet from your SmartThings hub
 * it is behind a firewall/VPN.
 * your camera is using an IP address that is not in the standard private IP address range
+* you are routed through the NVR in a daisy chain (untested at this time)
 
 ## Usage
 
 Once the UserID and Password has been configured in device Settings, the Refresh button on the device Control screen should be tapped to establish connection to the camera and retrieve additional camera configuration data.  If successful, additional information will now be shown in the Info table, and the camera is now ready for streaming video (see below).
 
 At this point, the user may choose to enable motion events by turning the Motion Events switch to ON.  If the motion events are successfully started, then the switch will remain in the ON position, and the Info Status field will be updated to 'Subscribed to events'.  If the switch reverts back to OFF position, this means that motion events are not available or an error occurred during motion event initialization.  At any time, motion events can be turned back OFF using the Motion Events switch.  The Info Status field will then be updated to 'Unsubscribed to events'.
+
+Adding barebones functionality to have smartthings recognize the doorbell presses from Reolink POE Doorbells. 
 
 ### Video Streaming
 Due to limitations in the SmartThings Edge platform, video is not available directly within the SmartThings device Controls screen.  Instead, a SmartThings Camera Group must be created and your ONVIF cameras added to it.  Then tapping on the Camera Group, live video will be displayed from the cameras.
@@ -35,6 +38,7 @@ The Edge driver subscribes to basic motion change events from the camera and the
 
 ### Cameras without static IP addresses
 Some cameras may occasionally change IP addresses if they are not assigned static IP addresses on your router.  If motion events are enabled for the SmartThings camera device OR if a Refresh is initiated, and the camera cannot be found at its known IP address, then the driver will automatically initiate a periodic re-discovery process until it finds the camera again and determines its new IP address.
+* This step might be 100% required for the Hub to find the camera stream correctly after being added to SmartThings. Other hub devices might not be able to stream this camera. (Unverified)
 
 ## Device Settings
 
@@ -104,6 +108,7 @@ Even if your camera is not listed there, check the manufacturer's documentation 
 ONVIF defines specific Profiles, which define the feature set the camera supports.  This Edge driver requires only the Streaming Profile (Profile S) for both streaming video and *CellMotionDetector* events, but it can also support the *MotionAlarm* events from Profile T cameras.
 
 ### Reolink
+* This is my first attempt at fixing issues with this driver.
 Many Reolink cameras should work with this driver, but not all.
 
 There are some anomolies in the Reolink ONVIF implementation (Reolink models are not offically conformant). For example, there is a bug in the event subscription renewal function where the camera does not set the proper subscription termination time.  However this particular issue should not cause any apparent problems to the user.

@@ -1,9 +1,9 @@
-name: onvif_camera
+name: ONVIFDoorbell
 metadata:
-  deviceType: Camera          # Declares the device as a camera
-  ocfDeviceType: x.com.st.d.camera  # Optional: OCF device type for cameras
-  vid: generic-camera         # Optional: Vendor ID
-  mnmn: SmartThings           # Optional: Manufacturer name
+  deviceType: Camera
+  ocfDeviceType: x.com.st.d.camera
+  vid: onvif-doorbell
+  mnmn: SmartThings
 components:
   - id: motion
     label: Motion Events
@@ -21,6 +21,11 @@ components:
     label: Tamper Events
     capabilities:
       - id: tamperAlert
+        version: 1
+  - id: doorbell
+    label: Doorbell
+    capabilities:
+      - id: doorbell
         version: 1
   - id: audio
     label: Audio Communication
@@ -44,7 +49,7 @@ components:
       - id: videoStream
         version: 1
     categories:
-      - name: Camera            # Ensures Video Widget compatibility
+      - name: Camera
 preferences:
   - title: "Command Timeout"
     name: commandtimeout
@@ -54,4 +59,32 @@ preferences:
     definition:
       minimum: 1
       maximum: 30
-      default: 5
+      default: 10
+  - title: "Enable Two-Way Audio"
+    name: enableTwoWayAudio
+    description: "Enable two-way audio communication"
+    required: false
+    preferenceType: boolean
+    definition:
+      default: true
+  - title: "Audio File Path"
+    name: audioFilePath
+    description: "Path to audio file for two-way communication"
+    required: false
+    preferenceType: string
+    definition:
+      default: "/path/to/audio/file.wav"
+  - title: "Enable Backup Stream"
+    name: enableBackupStream
+    description: "Enable backup stream from Home Assistant"
+    required: false
+    preferenceType: boolean
+    definition:
+      default: false
+  - title: "Backup Stream URL"
+    name: backupStreamUrl
+    description: "URL for Home Assistant backup stream"
+    required: false
+    preferenceType: string
+    definition:
+      default: "rtsp://[ha_ip]:8554/reolink_backup"

@@ -668,7 +668,7 @@ local function device_removed(driver, device)
 end
 
 -- Driver Definition
-onvifDriver = Driver("onvif_camera", {
+onvifDriver = Driver("ONVIFDoorbell", {
   discovery = discover.discover_handler,
   device_added = device_added,
   device_init = device_init,

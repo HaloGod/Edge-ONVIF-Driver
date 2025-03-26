@@ -15,7 +15,7 @@
   
   ONVIF Video camera driver for SmartThings Edge
 
-  MODIFIED BY HaloGod (2025) to add Reolink doorbell support with Visitor event, two-way audio, ffmpeg fallback, and SmartThings Video Widget support.
+  MODIFIED BY HaloGod (2025) to add Reolink doorbell support, two-way audio with ffmpeg fallback, SmartThings Video Widget support, and Home Assistant backup stream.
 --]]
 
 -- Edge libraries
@@ -24,7 +24,7 @@ local Driver = require "st.driver"
 local cosock = require "cosock"
 local socket = require "cosock.socket"
 local log = require "log"
-local os = require "os"  -- Added for ffmpeg command execution
+local os = require "os"
 
 -- Driver-specific libraries
 local Thread = require "st.thread"
@@ -44,7 +44,7 @@ local cap_motion = capabilities["partyvoice23922.motionevents2"]
 local linecross_capname = "partyvoice23922.linecross"
 local cap_linecross = capabilities[linecross_capname]
 
--- Standard capabilities for two-way communication and video widget
+-- Standard capabilities
 local cap_doorbell = capabilities.doorbell
 local cap_videoStream = capabilities.videoStream
 local cap_motionSensor = capabilities.motionSensor
@@ -226,64 +226,56 @@ local function handle_visitor_event(device, cam_func, msg)
       log.info(string.format('Visitor notification for %s: %s', device.label, msg.Topic[1]))
       log.info(string.format('\tVisitor value = "%s"', value))
       if (value == 'true') or (value == '1') then
-        if (socket.gettime() - device:get_field('LastVisitor')) >= device.preferences.minvisitorinterval then
+        if (socket.gettime() - (device:get_field('LastVisitor') or 0)) >= (device.preferences.minvisitorinterval or 5) then
           device:emit_event(cap_doorbell.doorbell('pushed'))
           device:set_field('LastVisitor', socket.gettime())
-          -- Auto-start video and audio stream for two-way communication
+          -- Start video stream
           handle_stream(onvifDriver, device, { command = 'startStream' })
-          -- Send greeting if audio output is enabled
-          if device.preferences.enableaudiooutput and cam_func.audio_output_token then
-            log.debug('Sending auto-greeting for', device.label)
-            local success = commands.SendAudioOutput(device, cam_func.audio_output_token, device.preferences.visitorgreeting)
+          -- Send audio if enabled
+          if device.preferences.enableTwoWayAudio and cam_func.audio_output_token then
+            log.debug('Sending audio for', device.label)
+            local success = commands.SendAudioOutput(device, cam_func.audio_output_token, "Visitor detected")
             if not success then
               log.warn('ONVIF audio output failed, attempting ffmpeg fallback')
-              local ffmpeg_success = send_audio_output_ffmpeg(device, cam_func.audio_output_token, device.preferences.visitorgreeting)
+              local ffmpeg_success = send_audio_output_ffmpeg(device, cam_func.audio_output_token, device.preferences.audioFilePath)
               if not ffmpeg_success then
                 log.error('Both ONVIF and ffmpeg audio output failed for', device.label)
               end
             end
           end
         else
-          log.info('Visitor event ignored due to configured min interval')
+          log.info('Visitor event ignored due to min interval')
         end
       end
     else
-      log.error('Item name mismatch with Visitor event message:', name)
+      log.error('Item name mismatch with Visitor event:', name)
     end
   else
     log.error('Missing Visitor event item name/value')
   end
 end
 
--- Fallback implementation for SendAudioOutput using ffmpeg
-local function send_audio_output_ffmpeg(device, output_token, message)
-  -- Ensure ffmpeg is installed on the hub (requires manual setup on SmartThings hub)
+local function send_audio_output_ffmpeg(device, output_token, audio_file)
   local cam_func = device:get_field('onvif_func')
   if not cam_func or not cam_func.stream_uri then
     log.error('Cannot find stream URI for ffmpeg audio output')
     return false
   end
-
-  -- Construct RTSP URL for audio streaming
   local rtsp_url = 'rtsp://' .. device.preferences.userid .. ':' .. device.preferences.password .. '@' .. cam_func.stream_uri:match('//(.+)')
-  -- Use ffmpeg to send audio to the camera (requires audio file or input)
-  local audio_file = '/tmp/greeting.wav' -- Assume a pre-recorded greeting file; user must provide
-  local ffmpeg_cmd = string.format('ffmpeg -re -i %s -c:a aac -b:a 64k -f rtsp %s', audio_file, rtsp_url)
-  log.debug('Attempting ffmpeg audio output with command:', ffmpeg_cmd)
-
-  -- Execute ffmpeg command (requires hub to support os.execute, may need custom setup)
+  local ffmpeg_cmd = string.format('ffmpeg -re -i "%s" -c:a aac -b:a 64k -f rtsp "%s"', audio_file, rtsp_url)
+  log.debug('Executing ffmpeg command:', ffmpeg_cmd)
   local handle = io.popen(ffmpeg_cmd)
   if handle then
     local result = handle:read('*a')
     handle:close()
-    if result and result:find('success') then
+    if result and not result:match('error') then
       log.info('ffmpeg audio output successful for', device.label)
       return true
     else
       log.error('ffmpeg audio output failed:', result or 'no output')
     end
   else
-    log.error('Failed to execute ffmpeg command for audio output')
+    log.error('Failed to execute ffmpeg command')
   end
   return false
 end
@@ -331,6 +323,17 @@ local function get_services(device)
       end
     end
   end
+end
+
+local function test_stream_availability(stream_url)
+  local cmd = string.format('ffmpeg -i "%s" -t 5 -f null -', stream_url)
+  local handle = io.popen(cmd .. ' 2>&1')
+  if handle then
+    local result = handle:read('*a')
+    handle:close()
+    return not result:match('error')
+  end
+  return false
 end
 
 local function get_cam_config(device)
@@ -521,6 +524,17 @@ local function get_cam_config(device)
     local uri_info = commands.GetStreamUri(device, substream_token, onvif_func.media_service_addr)
     if uri_info then
       onvif_func.stream_uri = uri_info['Uri']
+      -- Check for backup stream from Home Assistant
+      if device.preferences.enableBackupStream then
+        local backup_uri = device.preferences.backupStreamUrl or 'rtsp://[ha_ip]:8554/reolink_backup'
+        local success = test_stream_availability(backup_uri)
+        if success then
+          onvif_func.backup_stream_uri = backup_uri
+          log.info('Backup stream from HA configured:', backup_uri)
+        else
+          log.warn('Backup stream unavailable:', backup_uri)
+        end
+      end
       device:set_field('onvif_func', onvif_func)
       log.debug('Stream URI:', onvif_func.stream_uri)
     end
@@ -586,4 +600,89 @@ local function get_cam_config(device)
       end
       
       if rules.TamperDetector then
-        log.debug('Found Tamper L1 Topic: TamperDetector
+        log.debug('Found Tamper L1 Topic: TamperDetector')
+        local enabled, tamperrule = parserule(rules.TamperDetector)
+        onvif_func.tamper_events = enabled
+        if enabled then onvif_func.tamper_eventrule = tamperrule end
+      end
+      
+      if rules.LineDetector then
+        log.debug('Found LineDetector L1 Topic')
+        local enabled, linecrossrule = parserule(rules.LineDetector)
+        onvif_func.linecross_events = enabled
+        if enabled then onvif_func.linecross_eventrule = linecrossrule end
+      end
+      
+      if rules.MyRuleDetector then
+        log.debug('Found Visitor L1 Topic: MyRuleDetector')
+        local enabled, eventrule = parserule(rules.MyRuleDetector)
+        onvif_func.visitor_events = enabled
+        if enabled then
+          onvif_func.visitor_eventrule = { ['topic'] = 'RuleEngine/MyRuleDetector/Visitor', ['item'] = eventrule.item }
+          log.info('Visitor events enabled for Reolink doorbell')
+        end
+      end
+    end
+  end
+  
+  device:set_field('onvif_func', onvif_func)
+  return true
+end
+
+-- Additional Functions (Existing in Original)
+local function handle_stream(driver, device, command)
+  local cam_func = device:get_field('onvif_func')
+  if command.command == 'startStream' then
+    if cam_func.stream_uri then
+      local stream_url = cam_func.stream_uri
+      if device.preferences.enableBackupStream and cam_func.backup_stream_uri then
+        if not test_stream_availability(stream_url) then
+          stream_url = cam_func.backup_stream_uri
+          log.info('Switched to backup stream:', stream_url)
+        end
+      end
+      device:emit_component_event(device.profile.components.video, cap_videoStream.stream({ uri = stream_url }))
+    else
+      log.error('No stream URI available for', device.label)
+    end
+  elseif command.command == 'stopStream' then
+    device:emit_component_event(device.profile.components.video, cap_videoStream.stream({}))
+  end
+end
+
+-- Driver Lifecycle Handlers (Existing in Original, Adjusted)
+local function device_added(driver, device)
+  log.info('Device added:', device.label)
+  device.thread:call_with_delay(2, function() get_cam_config(device) end)
+end
+
+local function device_init(driver, device)
+  log.info('Device init:', device.label)
+  if not device:get_field('onvif_func') then
+    get_cam_config(device)
+  end
+end
+
+local function device_removed(driver, device)
+  log.info('Device removed:', device.label)
+end
+
+-- Driver Definition
+onvifDriver = Driver("onvif_camera", {
+  discovery = discover.discover_handler,
+  device_added = device_added,
+  device_init = device_init,
+  device_removed = device_removed,
+  capability_handlers = {
+    [cap_refresh.ID] = {
+      [cap_refresh.commands.refresh.NAME] = function(driver, device) get_cam_config(device) end,
+    },
+    [cap_videoStream.ID] = {
+      [cap_videoStream.commands.startStream.NAME] = handle_stream,
+      [cap_videoStream.commands.stopStream.NAME] = handle_stream,
+    },
+  },
+})
+
+-- Run the Driver
+onvifDriver:run()

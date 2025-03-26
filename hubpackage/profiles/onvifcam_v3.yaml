@@ -1,5 +1,11 @@
+# Device profile for ONVIF Video Camera with enhanced Reolink doorbell and two-way audio support
+# Version: v3
+# Modified by HaloGod (2025) to add doorbell and audio capabilities for Reolink two-way communication
 name: onvif_cam.v3
+
+# Component definitions for the device
 components:
+  # Main component for primary camera functions including motion, streaming, and audio
   - id: main
     label: Motion Events
     capabilities:
@@ -9,18 +15,32 @@ components:
         version: 1
       - id: videoStream
         version: 1
+      # Added doorbell capability to support Reolink Visitor event
+      - id: doorbell
+        version: 1
+      # Added audio capabilities for two-way communication
+      - id: audioCapture
+        version: 1
+      - id: audioOutput
+        version: 1
     categories:
       - name: Camera
+
+  # Line Cross Events component for line crossing detection
   - id: line
     label: Line Cross Events
     capabilities:
       - id: partyvoice23922.linecross
         version: 1
+
+  # Tamper Events component for tamper detection
   - id: tamper
     label: Tamper Events
     capabilities:
       - id: tamperAlert
         version: 1
+
+  # Utility component for status, info, and refresh capabilities
   - id: info
     label: Utility
     capabilities:
@@ -30,9 +50,14 @@ components:
         version: 1
       - id: partyvoice23922.refresh
         version: 1
+
+# Metadata for the device type
 metadata:
   ocfDeviceType: oic.d.camera
+
+# Device preferences for user-configurable settings
 preferences:
+  # Minimum interval between motion events to prevent flooding
   - title: "Minimum motion-active interval"
     name: minmotioninterval
     description: "Number of seconds"
@@ -42,6 +67,8 @@ preferences:
       minimum: 0
       maximum: 3600
       default: 10
+
+  # Auto-revert setting for motion events
   - title: "Auto motion revert"
     name: autorevert
     description: "Select behavior"
@@ -52,6 +79,8 @@ preferences:
         yesauto: "Auto-revert"
         noauto: "No auto-revert"
       default: noauto
+
+  # Delay for auto-reverting motion events
   - title: "Auto motion revert delay"
     name: revertdelay
     description: "Number of seconds"
@@ -61,6 +90,8 @@ preferences:
       minimum: 1
       maximum: 3600
       default: 5
+
+  # Minimum interval for line cross events
   - title: "Minimum Linecross interval"
     name: minlinecrossinterval
     description: "Number of seconds"
@@ -70,6 +101,8 @@ preferences:
       minimum: 0
       maximum: 3600
       default: 10
+
+  # Minimum interval for tamper events
   - title: "Minimum Tamper interval"
     name: mintamperinterval
     description: "Number of seconds"
@@ -79,6 +112,19 @@ preferences:
       minimum: 0
       maximum: 3600
       default: 0
+
+  # Minimum interval for Visitor (doorbell) events
+  - title: "Minimum Visitor interval"
+    name: minvisitorinterval
+    description: "Number of seconds"
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 0
+      maximum: 3600
+      default: 10
+
+  # Video stream selection (main or sub-stream)
   - title: "Video Stream Selection"
     name: stream
     description: "Select Stream"
@@ -89,6 +135,8 @@ preferences:
         mainstream: "Main Stream"
         substream: "Sub Stream"
       default: substream
+
+  # Motion rule selection for event detection
   - title: "Motion Rule Selection"
     name: motionrule
     description: "Select Rule"
@@ -99,6 +147,8 @@ preferences:
         cell: "RuleEngine/CellMotionDetector"
         alarm: "VideoSource/MotionAlarm"
       default: cell
+
+  # Event subscription method
   - title: "Event Subscription"
     name: eventmethod
     description: "Select method"
@@ -109,6 +159,8 @@ preferences:
         base: "Base"
         pullpoint: "Pull-point"
       default: base
+
+  # Camera authentication credentials
   - title: "UserID"
     name: userid
     description: "Camera sign-in userid"
@@ -119,6 +171,7 @@ preferences:
       minLength: 3
       maxLength: 36
       default: "*****"
+
   - title: "Password"
     name: password
     description: "Camera sign-in password"
@@ -129,3 +182,33 @@ preferences:
       minLength: 3
       maxLength: 36
       default: "*****"
+
+  # Enable/disable audio capture from camera
+  - title: "Enable Audio Capture"
+    name: enableaudiocapture
+    description: "Listen to audio from camera"
+    required: true
+    preferenceType: boolean
+    definition:
+      default: false
+
+  # Enable/disable audio output to camera
+  - title: "Enable Audio Output"
+    name: enableaudiooutput
+    description: "Send audio to camera"
+    required: true
+    preferenceType: boolean
+    definition:
+      default: false
+
+  # Auto-greeting message for Visitor event
+  - title: "Visitor Auto-Greeting"
+    name: visitorgreeting
+    description: "Message to play when doorbell is pressed"
+    required: false
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 0
+      maxLength: 100
+      default: "Hello, please state your purpose."

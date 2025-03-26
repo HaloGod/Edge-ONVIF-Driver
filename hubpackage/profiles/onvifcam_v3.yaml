@@ -1,3 +1,9 @@
+name: onvif_camera
+metadata:
+  deviceType: Camera          # Declares the device as a camera
+  ocfDeviceType: x.com.st.d.camera  # Optional: OCF device type for cameras
+  vid: generic-camera         # Optional: Vendor ID
+  mnmn: SmartThings           # Optional: Manufacturer name
 components:
   - id: motion
     label: Motion Events
@@ -38,4 +44,14 @@ components:
       - id: videoStream
         version: 1
     categories:
-      - name: Camera
+      - name: Camera            # Ensures Video Widget compatibility
+preferences:
+  - title: "Command Timeout"
+    name: commandtimeout
+    description: "Seconds for ONVIF command timeout"
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 1
+      maximum: 30
+      default: 5

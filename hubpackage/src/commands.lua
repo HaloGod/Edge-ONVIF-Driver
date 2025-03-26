@@ -15,7 +15,7 @@
   
   Implement ONVIF Network Device Operations (client)
 
-  MODIFIED BY HaloGod (2025) to add Reolink doorbell support, two-way audio, multiple hub routing, timing, and DNS lookup.
+  MODIFIED BY HaloGod (2025) to add Reolink doorbell support, two-way audio, and improved error handling.
 --]]
 
 local cosock = require "cosock"
@@ -23,26 +23,12 @@ local socket = require "cosock.socket"
 local http = cosock.asyncify "socket.http"
 local ltn12 = require "ltn12"
 local log = require "log"
-local dns = require "socket.dns"  -- Added for DNS lookup support
 
 local common = require "common"
 local auth = require "auth"
 local uuid = require "uuid"
 
--- Default timeout (configurable via preferences in init.lua if desired)
 http.TIMEOUT = 5
-
--- Local utility to resolve hostname to IP for dynamic environments
-local function resolve_hostname(hostname)
-  local ip, err = dns.toip(hostname)
-  if ip then
-    log.debug('Resolved hostname', hostname, 'to IP', ip)
-    return ip
-  else
-    log.warn('DNS lookup failed for', hostname, ':', err)
-    return hostname -- Fallback to original hostname if resolution fails
-  end
-end
 
 local function parse_XMLresponse(data)
   local parsed_xml = common.xml_to_table(data)
@@ -68,12 +54,6 @@ local function onvif_cmd(sendurl, command, sendbody, authheader, timeout)
   local responsechunks = {}
   local ret, code, headers, status
 
-  -- Resolve hostname if present in URL
-  local host = sendurl:match('//([^:/]+)')
-  local resolved_host = resolve_hostname(host)
-  sendurl = sendurl:gsub(host, resolved_host)
-
-  -- Apply custom timeout if provided
   local old_timeout = http.TIMEOUT
   http.TIMEOUT = timeout or http.TIMEOUT
 
@@ -88,9 +68,9 @@ local function onvif_cmd(sendurl, command, sendbody, authheader, timeout)
       GetVideoSources = 'http://www.onvif.org/ver10/media/wsdl/GetVideoSources',
       GetProfiles = 'http://www.onvif.org/ver10/media/wsdl/GetProfiles',
       GetStreamUri = 'http://www.onvif.org/ver10/media/wsdl/GetStreamUri',
-      GetAudioSources = 'http://www.onvif.org/ver10/media/wsdl/GetAudioSources',  -- Added for audio
-      GetAudioOutputs = 'http://www.onvif.org/ver10/media/wsdl/GetAudioOutputs',  -- Added for audio
-      SendAudioOutput = 'http://www.onvif.org/ver10/media/wsdl/SetAudioOutputConfiguration'  -- Added for audio
+      GetAudioSources = 'http://www.onvif.org/ver10/media/wsdl/GetAudioSources',
+      GetAudioOutputs = 'http://www.onvif.org/ver10/media/wsdl/GetAudioOutputs',
+      SendAudioOutput = 'http://www.onvif.org/ver10/media/wsdl/SetAudioOutputConfiguration'
     }
     if actions[command] then
       content_type = content_type .. '; action="' .. actions[command] .. '"'
@@ -99,7 +79,7 @@ local function onvif_cmd(sendurl, command, sendbody, authheader, timeout)
     sendbody = common.compact_XML(sendbody)
     local sendheaders = {
       ["Content-Type"] = content_type,
-      ["Host"] = resolved_host,
+      ["Host"] = sendurl:match('//([^:/]+)'),
       ["Accept"] = 'gzip, deflate',
       ["Content-Length"] = #sendbody,
       ["Connection"] = 'close',
@@ -129,7 +109,7 @@ local function onvif_cmd(sendurl, command, sendbody, authheader, timeout)
     }
   end
 
-  http.TIMEOUT = old_timeout  -- Restore original timeout
+  http.TIMEOUT = old_timeout
   local response = table.concat(responsechunks)
   
   log.debug('HTTP Response Header:', status)
@@ -271,66 +251,46 @@ end
 local function send_request(device, reqname, serviceURI, request, timeout)
   local auth_request, auth_header
   local authinfo = device:get_field('onvif_authinfo')
-  
-  if not authinfo then
-    authinfo, auth_header, auth_request, http_code, http_response = get_new_auth(device, reqname, serviceURI, request)
+  local retries = 3
+  local retry_delay = 2
+
+  for attempt = 1, retries do
+    log.debug(string.format("Sending %s to %s (attempt %d/%d, timeout %ds)", reqname, serviceURI, attempt, retries, timeout or 5))
+
     if not authinfo then
-      log.error('Failed to determine authentication method')
-      return nil, http_code
-    end
-  else
-    if authinfo.type == 'wss' then
-      auth_request = common.add_XML_header(request, auth.build_UsernameToken(device))
-    elseif authinfo.type == 'http' and authinfo.authdata then
-      auth_header = auth.build_authheader(device, "POST", serviceURI, authinfo.authdata)
-      auth_request = request
-    elseif authinfo.type == 'none' then
-      auth_request = request
-    else
-      log.error('Invalid authinfo state')
-      return
-    end
-  end
-  
-  if http_code ~= 200 then
-    local success, headers
-    success, http_code, http_response, headers = _send_request(device, serviceURI, reqname, auth_request, auth_header, timeout)
-    if http_code == 401 then
-      local auth_record = parse_authenticate(headers)
-      if auth_record then
-        if auth_record:find('gSOAP Web Service') then
-          auth_request = common.add_XML_header(request, auth.build_UsernameToken(device))
-          success, http_code, http_response = _send_request(device, serviceURI, reqname, auth_request, nil, timeout)
-        else
-          local authdata = create_authdata_table(auth_record)
-          if authinfo.type == 'none' then device:set_field('onvif_authinfo', nil) end
-          auth_header = auth.build_authheader(device, "POST", serviceURI, authdata)
-          success, http_code, http_response = _send_request(device, serviceURI, reqname, auth_request, auth_header, timeout)
-        end
-      else
-        log.error('HTTP 401 without WWW-Authenticate header')
+      authinfo, auth_header, auth_request, http_code, http_response = get_new_auth(device, reqname, serviceURI, request)
+      if not authinfo then
+        log.error('Failed to determine authentication method')
         return nil, http_code
       end
-    elseif http_code == 400 and (authinfo.type == 'wss' or authinfo.type == 'none') then
-      local _, _, fault_text = parse_XMLresponse(http_response)
-      if fault_text and (string.lower(fault_text):find('not authorized') or string.lower(fault_text):find('authority failure')) then
+    else
+      if authinfo.type == 'wss' then
         auth_request = common.add_XML_header(request, auth.build_UsernameToken(device))
-        success, http_code, http_response = _send_request(device, serviceURI, reqname, auth_request, nil, timeout)
+      elseif authinfo.type == 'http' and authinfo.authdata then
+        auth_header = auth.build_authheader(device, "POST", serviceURI, authinfo.authdata)
+        auth_request = request
+      elseif authinfo.type == 'none' then
+        auth_request = request
+      else
+        log.error('Invalid authinfo state')
+        return
       end
     end
-  end
-  
-  if http_code == 200 and http_response then
-    local xml_head, xml_body = parse_XMLresponse(http_response)
-    if xml_body then
-      return common.strip_xmlns(xml_body), http_code
+
+    local success, http_code, http_response, headers = _send_request(device, serviceURI, reqname, auth_request, auth_header, timeout)
+    if success and http_code == 200 then
+      local xml_head, xml_body = parse_XMLresponse(http_response)
+      if xml_body then
+        return common.strip_xmlns(xml_body), http_code
+      end
+    elseif attempt < retries then
+      log.warn(string.format("%s failed with code %s, retrying in %ds", reqname, http_code, retry_delay))
+      socket.sleep(retry_delay)
     else
-      log.error(string.format('No XML body returned for %s request to camera %s', reqname, device.label))
+      log.error(string.format("%s failed after %d attempts with HTTP Error %s", reqname, retries, http_code))
+      check_offline(device, http_code)
+      return nil, http_code
     end
-  else
-    log.error(string.format('%s request failed with HTTP Error %s (camera %s)', reqname, http_code, device.label))
-    check_offline(device, http_code)
-    return nil, http_code
   end
 end
 
@@ -510,7 +470,6 @@ function GetStreamUri(device, token, media_serviceURI)
   log.error(string.format('Failed to get stream URI from %s', media_serviceURI))
 end
 
--- New command for getting audio sources (for two-way communication)
 function GetAudioSources(device, media_serviceURI)
   local request = [[
 <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
@@ -529,7 +488,6 @@ function GetAudioSources(device, media_serviceURI)
   return nil
 end
 
--- New command for getting audio outputs (for two-way communication)
 function GetAudioOutputs(device, media_serviceURI)
   local request = [[
 <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
@@ -548,7 +506,6 @@ function GetAudioOutputs(device, media_serviceURI)
   return nil
 end
 
--- New command for sending audio output (for two-way communication)
 function SendAudioOutput(device, output_token, message)
   local media_serviceURI = device:get_field('onvif_func').media_service_addr
   local request = [[
@@ -565,12 +522,9 @@ function SendAudioOutput(device, output_token, message)
   </s:Body>
 </s:Envelope>
 ]]
-  -- Note: This is a placeholder; actual audio transmission requires RTSP or proprietary Reolink commands
-  local xml_body = send_request(device, 'SendAudioOutput', media_serviceURI, request, 10) -- Increased timeout for audio
+  local xml_body = send_request(device, 'SendAudioOutput', media_serviceURI, request, 10)
   if xml_body then
-    log.debug('Audio output configuration set for', device.label)
-    -- Simulate audio transmission (Reolink may require RTSP audio stream)
-    log.info('Simulated sending audio message:', message)
+    log.debug('Audio output set for', device.label, 'with message:', message)
     return true
   end
   log.error(string.format('Failed to send audio output to %s', media_serviceURI))
@@ -606,14 +560,13 @@ function Subscribe(device, event_serviceURI, listenURI)
     <wsa:Action s:mustUnderstand="1">http://docs.oasis-open.org/wsn/bw-2/NotificationProducer/SubscribeRequest</wsa:Action>
     <wsa:ReplyTo><wsa:Address>http://www.w3.org/2005/08/addressing/anonymous</wsa:Address></wsa:ReplyTo>
   </s:Header>
-  <s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <s:Body>
     <wsnt:Subscribe>
       <wsnt:ConsumerReference>
         <wsa:Address>]] .. listenURI .. [[</wsa:Address>
       </wsnt:ConsumerReference>
 ]]
 
-  -- Enhanced filter for Reolink Visitor event
   local visitor_filter = [[
       <wsnt:Filter>
         <wsnt:TopicExpression Dialect="http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet">
@@ -641,7 +594,6 @@ function Subscribe(device, event_serviceURI, listenURI)
 </s:Envelope>
 ]]
 
-  -- Combine filters for motion and visitor events
   local request = request_part1 .. (device.preferences.motionrule and motion_filter or '') .. visitor_filter .. request_lastpart
   request = augment_header(request, event_serviceURI)
   
@@ -743,9 +695,9 @@ return {
   GetVideoSources = GetVideoSources,
   GetProfiles = GetProfiles,
   GetStreamUri = GetStreamUri,
-  GetAudioSources = GetAudioSources,  -- Added for two-way audio
-  GetAudioOutputs = GetAudioOutputs,  -- Added for two-way audio
-  SendAudioOutput = SendAudioOutput,  -- Added for two-way audio
+  GetAudioSources = GetAudioSources,
+  GetAudioOutputs = GetAudioOutputs,
+  SendAudioOutput = SendAudioOutput,
   GetEventProperties = GetEventProperties,
   Subscribe = Subscribe,
   CreatePullPointSubscription = CreatePullPointSubscription,

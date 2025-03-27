@@ -1,41 +1,12 @@
-name: ONVIFDoorbell
+name: HaloGod-ONVIF-Doorbell
 metadata:
   deviceType: Camera
   ocfDeviceType: x.com.st.d.camera
   vid: onvif-doorbell
   mnmn: SmartThings
 components:
-  - id: motion
-    label: Motion Events
-    capabilities:
-      - id: motionSensor
-        version: 1
-      - id: partyvoice23922.motionevents2
-        version: 1
-  - id: line
-    label: Line Cross Events
-    capabilities:
-      - id: partyvoice23922.linecross
-        version: 1
-  - id: tamper
-    label: Tamper Events
-    capabilities:
-      - id: tamperAlert
-        version: 1
-  - id: doorbell
-    label: Doorbell
-    capabilities:
-      - id: doorbell
-        version: 1
-  - id: audio
-    label: Audio Communication
-    capabilities:
-      - id: audioCapture
-        version: 1
-      - id: audioOutput
-        version: 1
-  - id: info
-    label: Utility
+  - id: main
+    label: Main
     capabilities:
       - id: partyvoice23922.onvifstatus
         version: 1
@@ -43,7 +14,36 @@ components:
         version: 1
       - id: partyvoice23922.refresh
         version: 1
-  - id: video
+  - id: motionComponent
+    label: Motion Events
+    capabilities:
+      - id: motionSensor
+        version: 1
+      - id: partyvoice23922.motionevents2
+        version: 1
+  - id: lineComponent
+    label: Line Cross Events
+    capabilities:
+      - id: partyvoice23922.linecross
+        version: 1
+  - id: tamperComponent
+    label: Tamper Events
+    capabilities:
+      - id: tamperAlert
+        version: 1
+  - id: doorbellComponent
+    label: Doorbell
+    capabilities:
+      - id: doorbell
+        version: 1
+  - id: audioComponent
+    label: Audio Communication
+    capabilities:
+      - id: audioCapture
+        version: 1
+      - id: audioOutput
+        version: 1
+  - id: videoComponent
     label: Video Stream
     capabilities:
       - id: videoStream
@@ -80,11 +80,11 @@ preferences:
     required: false
     preferenceType: boolean
     definition:
-      default: false
+      default: true
   - title: "Backup Stream URL"
     name: backupStreamUrl
     description: "URL for Home Assistant backup stream"
     required: false
     preferenceType: string
     definition:
-      default: "rtsp://[ha_ip]:8554/reolink_backup"
+      default: "https://[ha_url]/api/camera_proxy_stream/camera.reolink_doorbell?token=[ha_token]"

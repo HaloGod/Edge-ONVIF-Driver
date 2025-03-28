@@ -1,0 +1,24 @@
+{
+  "id": "pianodream12480.doorbell",
+  "version": 1,
+  "status": "proposed",
+  "name": "Doorbell",
+  "attributes": {
+    "button": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "enum": ["pressed", "released"]
+          }
+        },
+        "additionalProperties": false,
+        "required": ["value"]
+      },
+      "setter": null,
+      "enumCommands": []
+    }
+  },
+  "commands": {}
+}

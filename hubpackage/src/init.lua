@@ -37,11 +37,11 @@ local events = require "events"
 local common = require "common"
 
 -- Custom capabilities
-local cap_status = capabilities["partyvoice23922.onvifstatus"]
-local cap_info = capabilities["partyvoice23922.onvifinfo"]
-local cap_refresh = capabilities["partyvoice23922.refresh"]
-local cap_motion = capabilities["partyvoice23922.motionevents2"]
-local linecross_capname = "partyvoice23922.linecross"
+local cap_status = capabilities["pianodream12480.onvifstatus"]
+local cap_info = capabilities["pianodream12480.onvifinfo"]
+local cap_refresh = capabilities["pianodream12480.refresh"]
+local cap_motion = capabilities["pianodream12480.motionevents2"]
+local linecross_capname = "pianodream12480.linecross"
 local cap_linecross = capabilities[linecross_capname]
 
 -- Standard capabilities

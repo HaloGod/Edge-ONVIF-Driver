@@ -8,23 +8,23 @@ components:
   - id: main
     label: Main
     capabilities:
-      - id: partyvoice23922.onvifstatus
+      - id: pianodream12480.onvifStatus
         version: 1
-      - id: partyvoice23922.onvifinfo
+      - id: pianodream12480.onvifInfo
         version: 1
-      - id: partyvoice23922.refresh
+      - id: pianodream12480.refresh
         version: 1
   - id: motionComponent
     label: Motion Events
     capabilities:
       - id: motionSensor
         version: 1
-      - id: partyvoice23922.motionevents2
+      - id: pianodream12480.motionEvents2
         version: 1
   - id: lineComponent
     label: Line Cross Events
     capabilities:
-      - id: partyvoice23922.linecross
+      - id: pianodream12480.lineCross
         version: 1
   - id: tamperComponent
     label: Tamper Events
@@ -34,14 +34,14 @@ components:
   - id: doorbellComponent
     label: Doorbell
     capabilities:
-      - id: doorbell
+      - id: pianodream12480.doorbell
         version: 1
   - id: audioComponent
     label: Audio Communication
     capabilities:
       - id: audioCapture
         version: 1
-      - id: audioOutput
+      - id: pianodream12480.audioOutput
         version: 1
   - id: videoComponent
     label: Video Stream

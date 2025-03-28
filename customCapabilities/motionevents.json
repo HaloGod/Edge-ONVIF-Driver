@@ -1,11 +1,11 @@
 {
-    "id": "partyvoice23922.onvifinfo",
+    "id": "pianodream12480.motionevents",
     "version": 1,
     "status": "proposed",
-    "name": "onvifinfo",
+    "name": "motionevents",
     "ephemeral": false,
     "attributes": {
-        "info": {
+        "switch": {
             "schema": {
                 "type": "object",
                 "properties": {
@@ -18,8 +18,22 @@
                     "value"
                 ]
             },
+            "setter": "setSwitch",
             "enumCommands": []
         }
     },
-    "commands": {}
+    "commands": {
+        "setSwitch": {
+            "name": "setSwitch",
+            "arguments": [
+                {
+                    "name": "value",
+                    "optional": false,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ]
+        }
+    }
 }

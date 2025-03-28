@@ -1,15 +1,19 @@
-id: pianodream12480.onvifinfo
+id: partyvoice23922.linecross
 version: 1
 status: proposed
-name: onvifinfo
+name: linecross
 ephemeral: false
 attributes:
-  info:
+  linecross:
     schema:
       type: object
       properties:
         value:
+          title: ActivityState
           type: string
+          enum:
+            - active
+            - inactive
       additionalProperties: false
       required:
         - value

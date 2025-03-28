@@ -1,0 +1,24 @@
+{
+  "id": "pianodream12480.onvifstatus",
+  "version": 1,
+  "status": "proposed",
+  "name": "ONVIF Status",
+  "attributes": {
+    "status": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "enum": ["connected", "disconnected", "error"]
+          }
+        },
+        "additionalProperties": false,
+        "required": ["value"]
+      },
+      "setter": null,
+      "enumCommands": []
+    }
+  },
+  "commands": {}
+}

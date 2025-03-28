@@ -73,6 +73,9 @@ preferences:
     required: false
     preferenceType: string
     definition:
+      stringType: text
+      minLength: 3
+      maxLength: 120
       default: "/path/to/audio/file.wav"
   - title: "Enable Backup Stream"
     name: enableBackupStream
@@ -80,11 +83,110 @@ preferences:
     required: false
     preferenceType: boolean
     definition:
-      default: true
+      default: false
   - title: "Backup Stream URL"
     name: backupStreamUrl
     description: "URL for Home Assistant backup stream"
     required: false
     preferenceType: string
     definition:
+      stringType: text
+      minLength: 3
+      maxLength: 120
       default: "https://[ha_url]/api/camera_proxy_stream/camera.reolink_doorbell?token=[ha_token]"
+  - title: "Minimum motion-active interval"
+    name: minmotioninterval
+    description: "Number of seconds"
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 0
+      maximum: 3600
+      default: 10
+  - title: "Auto motion revert"
+    name: autorevert
+    description: "Select behavior"
+    required: true
+    preferenceType: enumeration
+    definition:
+      options:
+        yesauto: "Auto-revert"
+        noauto: "No auto-revert"
+      default: noauto
+  - title: "Auto motion revert delay"
+    name: revertdelay
+    description: "Number of seconds"
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 1
+      maximum: 3600
+      default: 5
+  - title: "Minimum Linecross interval"
+    name: minlinecrossinterval
+    description: "Number of seconds"
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 0
+      maximum: 3600
+      default: 10
+  - title: "Minimum Tamper interval"
+    name: mintamperinterval
+    description: "Number of seconds"
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 0
+      maximum: 3600
+      default: 0
+  - title: "Video Stream Selection"
+    name: stream
+    description: "Select Stream"
+    required: true
+    preferenceType: enumeration
+    definition:
+      options:
+        mainstream: "Main Stream"
+        substream: "Sub Stream"
+      default: substream
+  - title: "Motion Rule Selection"
+    name: motionrule
+    description: "Select Rule"
+    required: true
+    preferenceType: enumeration
+    definition:
+      options:
+        cell: "RuleEngine/CellMotionDetector"
+        alarm: "VideoSource/MotionAlarm"
+      default: cell
+  - title: "Event Subscription"
+    name: eventmethod
+    description: "Select method"
+    required: true
+    preferenceType: enumeration
+    definition:
+      options:
+        base: "Base"
+        pullpoint: "Pull-point"
+      default: base
+  - title: "UserID"
+    name: userid
+    description: "Camera sign-in userid"
+    required: true
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 3
+      maxLength: 36
+      default: "*****"
+  - title: "Password"
+    name: password
+    description: "Camera sign-in password"
+    required: true
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 3
+      maxLength: 36
+      default: "*****"

@@ -1,24 +1,30 @@
 {
-  "id": "pianodream12480.linecross",
-  "version": 1,
-  "status": "proposed",
-  "name": "Line Cross",
-  "attributes": {
-    "linecrossed": {
-      "schema": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "string",
-            "enum": ["detected", "idle"]
-          }
-        },
-        "additionalProperties": false,
-        "required": ["value"]
-      },
-      "setter": null,
-      "enumCommands": []
-    }
-  },
-  "commands": {}
+    "id": "pianodream12480.linecross",
+    "version": 1,
+    "status": "proposed",
+    "name": "linecross",
+    "ephemeral": false,
+    "attributes": {
+        "linecross": {
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "title": "ActivityState",
+                        "type": "string",
+                        "enum": [
+                            "active",
+                            "inactive"
+                        ]
+                    }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "value"
+                ]
+            },
+            "enumCommands": []
+        }
+    },
+    "commands": {}
 }

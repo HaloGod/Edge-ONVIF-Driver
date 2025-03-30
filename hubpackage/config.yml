@@ -7,6 +7,6 @@ permissions:
   lan: {}
   discovery: {}
 driver:
-  main: "init.lua"  # Explicitly points to init.lua in hubpackage/
+  main: "src/init.lua"  # Explicitly points to init.lua in hubpackage/src/
 profiles:
   - "profiles/onvifcam_v4.yaml"  # Links your profile

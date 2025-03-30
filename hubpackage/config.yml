@@ -1,5 +1,12 @@
-name: 'ONVIF Video Camera V1.4'
-packageKey: 'onvif_v1.4'
+name: "ONVIF Video Camera V1.4"
+packageKey: "onvif_v1.4"
+vendorName: "dMac"
+description: "ONVIF Doorbell Edge Driver"
+version: "4.0"
 permissions:
-    lan: {}
-    discovery: {}
+  lan: {}
+  discovery: {}
+driver:
+  main: "init.lua"  # Explicitly points to init.lua in hubpackage/
+profiles:
+  - "profiles/onvifcam_v4.yaml"  # Links your profile

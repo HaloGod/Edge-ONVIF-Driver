@@ -5,7 +5,7 @@
     "name": "motionevents2",
     "ephemeral": false,
     "attributes": {
-        "statelessPowerToggle": {
+        "motionSwitch": {
             "schema": {
                 "type": "object",
                 "properties": {

@@ -9,7 +9,6 @@
             "displayType": "switch",
             "switch": {
                 "command": {
-                    "name": "motionSwitch",
                     "on": "switchOn",
                     "off": "switchOff"
                 },
@@ -40,6 +39,6 @@
         "conditions": [],
         "actions": []
     },
-    "id": "pianodream12480.motionEvents2",
+    "id": "pianodream12480.motionevents2",
     "version": 1
 }

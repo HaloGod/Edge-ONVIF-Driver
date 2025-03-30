@@ -1,5 +1,5 @@
 --[[
-  Copyright 2022 Todd Austin
+  Copyright 2025 dMac
 
   Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
   except in compliance with the License. You may obtain a copy of the License at:
@@ -35,13 +35,13 @@ local shutdown = false
 
 local eventing_thread
 
-local DEFAULT_SUBSCRIBE_DURATION = 14400		
+local DEFAULT_SUBSCRIBE_DURATION = 600		
 local REOLINK_ID = 'IPC-BO'
 
 
 local function process_http_message(client)
 
-  client:settimeout(2)
+  client:settimeout(10)
   local content_length = 0
 
   do -- Read first line and verify it matches the expect request-line
@@ -84,7 +84,9 @@ local function process_http_message(client)
 			--log.debug(string.format('\t%s: %s', name, value))
 			
       -- Look for any desired headers here
-      
+      if string.lower(name) == "user-agent" and value:find("Reolink") then
+    		log.debug("Detected Reolink-specific User-Agent:", value)
+			end
       if string.lower(name) == "content-length" then
         content_length = tonumber(value)
       end
@@ -157,28 +159,37 @@ local function eventaccept_handler(eventsock)
 			local data = process_http_message(client)
 			
 			if data then
-				local xmldata_index = data:find('<?xml version=', 1, 'plaintext')
-				
-				if xmldata_index then
-					local parsed_xml = common.xml_to_table(string.sub(data, xmldata_index, #data))
+    local xmldata_index = data:find('<?xml version=', 1, 'plaintext')
+    
+    if xmldata_index then
+        local parsed_xml = common.xml_to_table(string.sub(data, xmldata_index, #data))
 
-					if parsed_xml then
-						log.debug('Received event message')
-						
-						parsed_xml = common.strip_xmlns(parsed_xml)
+        if parsed_xml then
+            log.debug('Received event message')
+            
+            parsed_xml = common.strip_xmlns(parsed_xml)
 
-						if common.is_element(parsed_xml, {'Envelope','Body','Notify','NotificationMessage'}) then
-						
-							local event_messages = parsed_xml['Envelope']['Body']['Notify']['NotificationMessage']
-							
-							--common.disptable(event_messages, '  ', 8)
-							
-							eventserver.callback(eventserver.device, event_messages)
-
-						else
-							log.warn ('Not a Notification Message')
-							common.disptable(parsed_xml, '  ', 8)
-						end
+            local event_messages
+            if common.is_element(parsed_xml, {'Envelope','Body','Notify','NotificationMessage'}) then
+                event_messages = parsed_xml['Envelope']['Body']['Notify']['NotificationMessage']
+            else
+                log.warn('Non-standard event format detected, attempting Reolink fallback')
+                if parsed_xml['Envelope'] and parsed_xml['Envelope']['Body'] then
+                    event_messages = parsed_xml['Envelope']['Body'] -- Fallback to raw Body content
+                else
+                    log.error('No valid event data found in XML')
+                    common.disptable(parsed_xml, '  ', 8)
+                    client:close()
+                    return
+                end
+            end
+            
+            if event_messages then
+                --common.disptable(event_messages, '  ', 8)
+                eventserver.callback(eventserver.device, event_messages)
+            else
+                log.warn('No event messages extracted from XML')
+            end
 							
 					else
 						log.error ('Could not parse message XML')
@@ -333,35 +344,55 @@ end
 
 local function _do_subscribe(eventserver)
 
-	local listen_uri = string.format('http://%s:%s/event', eventserver.listen_ip, eventserver.listen_port)
-	local device = eventserver.device
-	
-	log.info ('Subscribing to events for', device.label)
-	
-	local cam_func = device:get_field('onvif_func')
-	local cam_meta = device:get_field('onvif_disco')
-	
-	local response = commands.Subscribe(device, cam_func.event_service_addr, listen_uri)
-	
-	if response then
-	
-		--log.debug('Subscription response:')
-		--common.disptable(response, ' ', 10)
-		
-		-- Check for possible SubscriptionId reference parameter (e.g. Axis cameras)
-		
-		if common.is_element(response, {'SubscriptionReference', 'ReferenceParameters'}) then
-			if response.SubscriptionReference.ReferenceParameters.SubscriptionId then
-				local SubscriptionId = response.SubscriptionReference.ReferenceParameters.SubscriptionId
-				cam_func.subscriptionid = {}
-				cam_func.subscriptionid.id = SubscriptionId[1]
-				if SubscriptionId._attr then
-					for key, value in pairs(SubscriptionId._attr) do
-						cam_func.subscriptionid.attr = key .. '="' .. value .. '"'			-- assumes there is only one _attr element
-					end
-				end
-				device:set_field('onvif_func', cam_func)
-				log.debug (string.format('Found Subscription ID [%s], attr: %s', cam_func.subscriptionid.id, cam_func.subscriptionid.attr))
+    local listen_uri = string.format('http://%s:%s/event', eventserver.listen_ip, eventserver.listen_port)
+    local device = eventserver.device
+    
+    log.info ('Subscribing to events for', device.label)
+    
+    local cam_func = device:get_field('onvif_func')
+    local cam_meta = device:get_field('onvif_disco')
+    
+    -- Replace the single subscription call with a retry loop
+    local response
+    local max_attempts = 3
+    for attempt = 1, max_attempts do
+        response = commands.Subscribe(device, cam_func.event_service_addr, listen_uri)
+        if response then break end
+        log.warn(string.format("Subscribe attempt %d failed for %s, retrying...", attempt, device.label))
+        socket.sleep(5) -- Wait 5 seconds before retry
+    end
+    
+    if response then
+        --log.debug('Subscription response:')
+        --common.disptable(response, ' ', 10)
+        
+        -- Check for possible SubscriptionId reference parameter (e.g. Axis cameras)
+        
+        if common.is_element(response, {'SubscriptionReference', 'ReferenceParameters'}) then
+            if response.SubscriptionReference.ReferenceParameters.SubscriptionId then
+                local SubscriptionId = response.SubscriptionReference.ReferenceParameters.SubscriptionId
+                cam_func.subscriptionid = {}
+                cam_func.subscriptionid.id = SubscriptionId[1]
+                if SubscriptionId._attr then
+                    for key, value in pairs(SubscriptionId._attr) do
+                        cam_func.subscriptionid.attr = key .. '="' .. value .. '"'			-- assumes there is only one _attr element
+                    end
+                end
+                device:set_field('onvif_func', cam_func)
+                log.debug (string.format('Found Subscription ID [%s], attr: %s', cam_func.subscriptionid.id, cam_func.subscriptionid.attr))
+            else
+                log.warn ('Unexpected reference parameter')
+            end
+        end
+        
+        local renew_time = proc_renew_time(eventserver, response)
+        
+        if renew_time then
+            
+            log.info('Successfully subscribed to events for', device.label)
+            log.info(string.format('\tDuration = %s minutes', renew_time.duration/60))
+            log.info('\tRef Address:', response.SubscriptionReference.Address)
+            log.debug (string.format('Scheduling subscription renewal to run in %02d:%02d', renew_time.interval.min, renew_time.interval.sec))
 			else
 				log.warn ('Unexpected reference parameter')
 			end

@@ -1,5 +1,6 @@
-# SmartThings Edge ONVIF Driver
-Supports motion detection and streaming from ONVIF-compliant IP cameras
+# SmartThings Edge ONVIF Driver with DoorBell Enhancements
+Supports motion detection and streaming from ONVIF-compliant IP cameras.
+Also now supports doorbell functionality. Doorbell button presses should act like Ring Video Doorbells and provide a notification on ST TVs and Hubs. 
 
 ## Pre-requisites
 - SmartThings hub capable of running Edge platform

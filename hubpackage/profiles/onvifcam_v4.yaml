@@ -19,12 +19,12 @@ components:
     capabilities:
       - id: motionSensor
         version: 1
-      - id: pianodream12480.motionEvents2
+      - id: pianodream12480.motionevents2
         version: 1
   - id: lineComponent
     label: Line Cross Events
     capabilities:
-      - id: pianodream12480.lineCross
+      - id: pianodream12480.linecross
         version: 1
   - id: tamperComponent
     label: Tamper Events

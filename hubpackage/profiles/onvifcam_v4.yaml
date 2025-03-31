@@ -16,17 +16,19 @@ components:
         version: 1
       - id: videoStream
         version: 1
+    categories:
+      - name: Camera
   - id: motionComponent
     label: Motion Events
     capabilities:
       - id: motionSensor
         version: 1
-      - id: pianodream12480.motionEvents2  # Extended for smart events
+      - id: pianodream12480.motionevents2  # Extended for smart events (Person/Vehicle/Animal)
         version: 1
   - id: lineComponent
     label: Line Cross Events
     capabilities:
-      - id: pianodream12480.linecross
+      - id: pianodelay12480.linecross
         version: 1
   - id: tamperComponent
     label: Tamper Events
@@ -108,18 +110,18 @@ preferences:
       minLength: 3
       maxLength: 120
       default: "https://[ha_url]/api/camera_proxy_stream/camera.reolink_doorbell?token=[ha_token]"
-  - title: "Minimum motion-active interval"
+  - title: "Minimum Motion-Active Interval"
     name: minmotioninterval
-    description: "Number of seconds"
+    description: "Number of seconds between motion events"
     required: false
     preferenceType: integer
     definition:
       minimum: 0
       maximum: 3600
       default: 10
-  - title: "Auto motion revert"
+  - title: "Auto Motion Revert"
     name: autorevert
-    description: "Select behavior"
+    description: "Select behavior for motion revert"
     required: true
     preferenceType: enumeration
     definition:
@@ -127,36 +129,45 @@ preferences:
         yesauto: "Auto-revert"
         noauto: "No auto-revert"
       default: noauto
-  - title: "Auto motion revert delay"
+  - title: "Auto Motion Revert Delay"
     name: revertdelay
-    description: "Number of seconds"
+    description: "Number of seconds before reverting motion state"
     required: false
     preferenceType: integer
     definition:
       minimum: 1
       maximum: 3600
       default: 5
-  - title: "Minimum Linecross interval"
+  - title: "Minimum Linecross Interval"
     name: minlinecrossinterval
-    description: "Number of seconds"
+    description: "Number of seconds between line cross events"
     required: false
     preferenceType: integer
     definition:
       minimum: 0
       maximum: 3600
       default: 10
-  - title: "Minimum Tamper interval"
+  - title: "Minimum Tamper Interval"
     name: mintamperinterval
-    description: "Number of seconds"
+    description: "Number of seconds between tamper events"
     required: false
     preferenceType: integer
     definition:
       minimum: 0
       maximum: 3600
       default: 0
+  - title: "Minimum Visitor Interval"
+    name: minvisitorinterval
+    description: "Number of seconds between visitor/doorbell events"
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 0
+      maximum: 3600
+      default: 10
   - title: "Video Stream Selection"
     name: stream
-    description: "Select Stream"
+    description: "Select video stream type"
     required: true
     preferenceType: enumeration
     definition:
@@ -166,7 +177,7 @@ preferences:
       default: substream
   - title: "Motion Rule Selection"
     name: motionrule
-    description: "Select Rule"
+    description: "Select motion detection rule"
     required: true
     preferenceType: enumeration
     definition:
@@ -174,9 +185,9 @@ preferences:
         cell: "RuleEngine/CellMotionDetector"
         alarm: "VideoSource/MotionAlarm"
       default: cell
-  - title: "Event Subscription"
+  - title: "Event Subscription Method"
     name: eventmethod
-    description: "Select method"
+    description: "Select event subscription method"
     required: true
     preferenceType: enumeration
     definition:
@@ -217,4 +228,43 @@ preferences:
   - title: "NVR IP Address"
     name: nvrIp
     description: "IP of RLN36 NVR (leave blank for direct camera access)"
-    required: falseSorry about that, something didn't go as planned. Please try again, and if you're still seeing this message, go ahead and restart the app.
+    required: false
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 0
+      maxLength: 15
+      default: ""
+  - title: "Enable HDR"
+    name: enableHDR
+    description: "Enable High Dynamic Range imaging"
+    required: false
+    preferenceType: boolean
+    definition:
+      default: false
+  - title: "Day/Night Threshold"
+    name: dayNightThreshold
+    description: "Threshold for switching between day and night modes (0-100)"
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 0
+      maximum: 100
+      default: 50
+  - title: "Enable Auto-Tracking"
+    name: autoTracking
+    description: "Enable auto-tracking for PTZ cameras"
+    required: false
+    preferenceType: boolean
+    definition:
+      default: false
+  - title: "Quick Reply Message"
+    name: quickReply
+    description: "Message to play when doorbell is pressed"
+    required: false
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 0
+      maxLength: 120
+      default: "Please wait."

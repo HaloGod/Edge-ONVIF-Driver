@@ -8,18 +8,20 @@ components:
   - id: main
     label: Main
     capabilities:
-      - id: pianodream12480.onvifStatus
+      - id: pianodream12480.onvifstatus
         version: 1
-      - id: pianodream12480.onvifInfo
+      - id: pianodream12480.onvifinfo
         version: 1
       - id: pianodream12480.refresh
+        version: 1
+      - id: videoStream
         version: 1
   - id: motionComponent
     label: Motion Events
     capabilities:
       - id: motionSensor
         version: 1
-      - id: pianodream12480.motionevents2
+      - id: pianodream12480.motionEvents2  # Extended for smart events
         version: 1
   - id: lineComponent
     label: Line Cross Events
@@ -34,7 +36,7 @@ components:
   - id: doorbellComponent
     label: Doorbell
     capabilities:
-      - id: pianodream12480.doorbell
+      - id: pianodream12480.doorbell  # Updated for button press
         version: 1
   - id: audioComponent
     label: Audio Communication
@@ -43,6 +45,8 @@ components:
         version: 1
       - id: pianodream12480.audioOutput
         version: 1
+      - id: pianodream12480.audioStream  # New for Profile T audio
+        version: 1
   - id: videoComponent
     label: Video Stream
     capabilities:
@@ -50,6 +54,16 @@ components:
         version: 1
     categories:
       - name: Camera
+  - id: trackMixComponent
+    label: TrackMix Controls
+    capabilities:
+      - id: pianodream12480.ptzControl  # New for PTZ and auto-tracking
+        version: 1
+  - id: chimeComponent
+    label: Chime
+    capabilities:
+      - id: pianodream12480.chimeControl  # New for chime and quick reply
+        version: 1
 preferences:
   - title: "Command Timeout"
     name: commandtimeout
@@ -200,3 +214,7 @@ preferences:
         md5: "MD5"
         sha1: "SHA-1"
       default: md5
+  - title: "NVR IP Address"
+    name: nvrIp
+    description: "IP of RLN36 NVR (leave blank for direct camera access)"
+    required: falseSorry about that, something didn't go as planned. Please try again, and if you're still seeing this message, go ahead and restart the app.

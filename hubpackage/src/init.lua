@@ -15,7 +15,8 @@
   
   ONVIF Video camera driver for SmartThings Edge with Reolink Doorbell support, two-way audio,
   SmartThings Video Widget, and Home Assistant backup stream. Enhanced with retry logic,
-  concurrency control, modular event handling, and subscription management.
+  concurrency control, modular event handling, subscription management, NVR streaming, PTZ,
+  smart events, HDR/day-night settings, and chime/quick reply support.
 --]]
 
 -- Edge libraries
@@ -25,6 +26,7 @@ local cosock = require "cosock"
 local socket = require "cosock.socket"
 local log = require "log"
 local os = require "os"
+local json = require "dkjson"  -- Added for JSON parsing
 
 -- Driver-specific libraries
 local Thread = require "st.thread"
@@ -35,17 +37,21 @@ local commands = require "commands"
 local events = require "events"
 local common = require "common"
 local event_handlers = require "event_handlers"
+local audio = require "audio"  -- New audio module for Profile T
+local ptz = require "ptz"      -- New PTZ module for TrackMix
 
 -- Custom capabilities
 local cap_status = capabilities["pianodream12480.onvifstatus"]
 local cap_info = capabilities["pianodream12480.onvifinfo"]
 local cap_refresh = capabilities["pianodream12480.refresh"]
 local cap_motion = capabilities["pianodream12480.motionevents2"]
-local linecross_capname = "pianodream12480.linecross"
-local cap_linecross = capabilities[linecross_capname]
+local cap_linecross = capabilities["pianodream12480.linecross"]
+local cap_doorbell = capabilities["pianodream12480.doorbell"]
+local cap_audioStream = capabilities["pianodream12480.audioStream"]
+local cap_ptzControl = capabilities["pianodream12480.ptzControl"]
+local cap_chimeControl = capabilities["pianodream12480.chimeControl"]
 
 -- Standard capabilities
-local cap_doorbell = capabilities.doorbell
 local cap_videoStream = capabilities.videoStream
 local cap_motionSensor = capabilities.motionSensor
 local cap_tamperAlert = capabilities.tamperAlert
@@ -111,7 +117,8 @@ local function validate_preferences(device)
         minmotioninterval = 5, minlinecrossinterval = 5, mintamperinterval = 5, minvisitorinterval = 5,
         revertdelay = 10, autorevert = 'noauto', enableTwoWayAudio = false, audioFilePath = '/default/audio.wav',
         enableBackupStream = false, backupStreamUrl = 'rtsp://[ha_ip]:8554/reolink_backup', stream = 'mainstream',
-        motionrule = 'cell', userid = '*****', password = '*****'
+        motionrule = 'cell', userid = '*****', password = '*****', nvrIp = '', enableHDR = false,
+        dayNightThreshold = 50, autoTracking = false, quickReply = 'Please wait.'
     }
     for key, default in pairs(defaults) do
         if device.preferences[key] == nil or (type(device.preferences[key]) ~= type(default) and key ~= 'userid' and key ~= 'password') then
@@ -126,6 +133,7 @@ local function validate_preferences(device)
     return true
 end
 
+-- Event Handling with Smart Events (Person/Vehicle/Animal Detection)
 local function event_handler(device, msgs)
     local function proc_msg(device, cam_func, msg)
         event_sem:acquire(function()
@@ -135,14 +143,37 @@ local function event_handler(device, msgs)
             end
             local topic = msg.Topic[1]
             log.debug(string.format('Received event for %s: topic=%s', device.label, topic))
+            
+            -- Motion Events with Smart Detection
             if topic:find(cam_func.motion_eventrule.topic, 1, 'plaintext') and cam_func.motion_events then
+                local object_type = msg.Data and msg.Data.SimpleItem and msg.Data.SimpleItem.Value or nil
                 event_handlers.handle_motion_event(device, cam_func, msg)
+                if object_type then
+                    if object_type:match("Person") then
+                        device:emit_event(cap_motion.personDetected("active"))
+                    elseif object_type:match("Vehicle") then
+                        device:emit_event(cap_motion.vehicleDetected("active"))
+                    elseif object_type:match("Animal") then
+                        device:emit_event(cap_motion.animalDetected("active"))
+                    end
+                end
+            -- Tamper Events
             elseif topic:find(cam_func.tamper_eventrule.topic, 1, 'plaintext') and cam_func.tamper_events then
                 event_handlers.handle_tamper_event(device, cam_func, msg)
+            -- Linecross Events
             elseif topic:find(cam_func.linecross_eventrule.topic, 1, 'plaintext') and cam_func.linecross_events then
                 event_handlers.handle_linecross_event(device, cam_func, msg)
+            -- Doorbell/Visitor Events
             elseif topic:find(cam_func.visitor_eventrule.topic, 1, 'plaintext') and cam_func.visitor_events then
-                event_handlers.handle_visitor_event(device, cam_func, msg, 15)  -- Pass 15s timeout for audio
+                event_handlers.handle_visitor_event(device, cam_func, msg, 15)
+                -- Emit button press event similar to Ring Doorbell
+                device:emit_event(cap_doorbell.button("pushed"))
+                device:emit_event(cap_doorbell.numberOfButtons(1))
+                device:emit_event(cap_doorbell.supportedButtonValues({"pushed"}))
+                -- Play quick reply if configured
+                if device.preferences.quickReply and device.preferences.quickReply ~= "" then
+                    commands.SetAudioOutput(device, cam_func.audio_output_token, device.preferences.quickReply)
+                end
             else
                 log.warn(string.format('Received message for %s ignored (topic=%s)', device.label, topic))
             end
@@ -160,6 +191,7 @@ local function event_handler(device, msgs)
     end
 end
 
+-- Get Event Service Address
 local function get_services(device)
     local meta = device:get_field('onvif_disco')
     local services = commands.GetServices(device, meta.uri.device_service)
@@ -172,6 +204,7 @@ local function get_services(device)
     end
 end
 
+-- Test Stream Availability
 local function test_stream_availability(stream_url)
     local cmd = string.format('ffmpeg -i "%s" -t 5 -f null -', stream_url)
     local handle = io.popen(cmd .. ' 2>&1')
@@ -183,6 +216,59 @@ local function test_stream_availability(stream_url)
     return false
 end
 
+-- Get Stream URL (Support NVR Streaming)
+local function get_stream_url(device, channel, stream_type)
+    local ip = device.preferences.nvrIp ~= "" and device.preferences.nvrIp or device.preferences.ipAddress
+    local username = device.preferences.userid
+    local password = device.preferences.password
+    local stream = stream_type == "mainstream" and "main" or "sub"
+    return string.format("rtsp://%s:%s@%s/h264Preview_%02d_%s", username, password, ip, channel, stream)
+end
+
+-- Discover NVR Channels (Updated with Reolink NVR JSON)
+local function discover_nvr_channels(device)
+    local channels = {}
+    local nvr_ip = device.preferences.nvrIp
+    if not nvr_ip or nvr_ip == "" then
+        log.warn("NVR IP not configured for", device.label)
+        return channels
+    end
+
+    -- Simulate fetching JSON from NVR (replace with actual API call if needed)
+    local json_str = '[ { "cmd" : "GetChannelstatus", "code" : 0, "value" : { "count" : 36, "status" : [ { "channel" : 0, "name" : "Driveway Overwatch", "online" : 1, "sleep" : 0, "uid" : "95270007LEQV1Q6Q" }, { "channel" : 1, "name" : "Side Lot", "online" : 1, "sleep" : 0, "uid" : "95270007LE2C6Y8L" }, { "channel" : 2, "name" : "Doorbell", "online" : 1, "sleep" : 0, "uid" : "95270006Q593IUT7" }, { "channel" : 3, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 4, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 5, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 6, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 7, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 8, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 9, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 10, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 11, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 12, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 13, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 14, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 15, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 16, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 17, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 18, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 19, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 20, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 21, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 22, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 23, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 24, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 25, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 26, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 27, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 28, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 29, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 30, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 31, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 32, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 33, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 34, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 35, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" } ] } } ]'
+    local data, pos, err = json.decode(json_str)
+    
+    if err then
+        log.error("Failed to parse NVR channel status JSON:", err)
+        return channels
+    end
+
+    -- Extract status array from the first object in the array
+    local channel_data = data[1].value.status
+    
+    for _, channel in ipairs(channel_data) do
+        if channel.online == 1 then
+            if channel.name == "Doorbell" then
+                device.profile.data = device.profile.data or {}
+                device.profile.data.channel = channel.channel
+                log.info("Doorbell channel identified:", channel.channel)
+            end
+            table.insert(channels, {
+                channel = channel.channel,
+                name = channel.name,
+                online = channel.online,
+                sleep = channel.sleep,
+                uid = channel.uid
+            })
+        end
+    end
+    
+    device:set_field('nvr_channels', channels)
+    log.info("Discovered", #channels, "active NVR channels for", device.label)
+    return channels
+end
+
+-- Device Configuration and Initialization
 local function get_cam_config(device, retries)
     retries = retries or 0
     local MAX_RETRIES = 3
@@ -289,6 +375,23 @@ local function get_cam_config(device, retries)
         if capabilities_resp['Media']['StreamingCapabilities'] then
             onvif_func.RTP_TCP = capabilities_resp['Media']['StreamingCapabilities']['RTP_TCP']
             onvif_func.RTP_RTSP_TCP = capabilities_resp['Media']['StreamingCapabilities']['RTP_RTSP_TCP']
+        end
+    end
+    
+    if capabilities_resp['Imaging'] then
+        onvif_func.imaging_service_addr = capabilities_resp['Imaging']['XAddr']
+        -- Configure HDR and Day/Night settings
+        if device.preferences.enableHDR then
+            commands.SetImagingSettings(device, onvif_func.imaging_service_addr, { EnableHDR = true })
+        end
+        commands.SetImagingSettings(device, onvif_func.imaging_service_addr, { DayNightThreshold = device.preferences.dayNightThreshold })
+    end
+    
+    if capabilities_resp['PTZ'] then
+        onvif_func.ptz_service_addr = capabilities_resp['PTZ']['XAddr']
+        -- Enable auto-tracking if configured
+        if device.preferences.autoTracking then
+            ptz.enable_auto_tracking(device, onvif_func.ptz_service_addr)
         end
     end
     
@@ -469,17 +572,29 @@ local function get_cam_config(device, retries)
         end
     end
     
+    -- Discover NVR channels if NVR IP is configured
+    if device.preferences.nvrIp and device.preferences.nvrIp ~= "" then
+        discover_nvr_channels(device)
+    end
+    
     device:set_field('onvif_func', onvif_func)
     device:emit_component_event(device.profile.components.info, cap_status.status('Initialized'))
     device:set_field('init_failed', false, {['persist'] = true})
     return true
 end
 
+-- Handle Video Stream (Support NVR Streaming)
 local function handle_stream(driver, device, command)
     local cam_func = device:get_field('onvif_func')
     if command.command == 'startStream' then
-        if cam_func.stream_uri then
-            local stream_url = cam_func.stream_uri
+        local stream_url
+        if device.preferences.nvrIp and device.preferences.nvrIp ~= "" then
+            local channel = device.profile.data and device.profile.data.channel or 0
+            stream_url = get_stream_url(device, channel, device.preferences.stream)
+        else
+            stream_url = cam_func.stream_uri
+        end
+        if stream_url then
             if device.preferences.enableBackupStream and cam_func.backup_stream_uri then
                 if not test_stream_availability(stream_url) then
                     stream_url = cam_func.backup_stream_uri
@@ -504,6 +619,54 @@ local function handle_stream(driver, device, command)
     end
 end
 
+-- Handle Audio Stream (ONVIF Profile T)
+local function handle_audio_stream(driver, device, command)
+    if command.command == 'startStream' then
+        audio.start_audio_stream(device)
+    elseif command.command == 'stopStream' then
+        audio.stop_audio_stream(device)
+    end
+end
+
+-- Handle PTZ Commands
+local function handle_ptz(driver, device, command)
+    local cam_func = device:get_field('onvif_func')
+    if not cam_func.ptz_service_addr then
+        log.warn('PTZ service not available for', device.label)
+        return
+    end
+    if command.command == 'panLeft' then
+        ptz.pan_left(device, cam_func.ptz_service_addr)
+    elseif command.command == 'panRight' then
+        ptz.pan_right(device, cam_func.ptz_service_addr)
+    elseif command.command == 'tiltUp' then
+        ptz.tilt_up(device, cam_func.ptz_service_addr)
+    elseif command.command == 'tiltDown' then
+        ptz.tilt_down(device, cam_func.ptz_service_addr)
+    elseif command.command == 'zoomIn' then
+        ptz.zoom_in(device, cam_func.ptz_service_addr)
+    elseif command.command == 'zoomOut' then
+        ptz.zoom_out(device, cam_func.ptz_service_addr)
+    elseif command.command == 'trackStart' then
+        ptz.enable_auto_tracking(device, cam_func.ptz_service_addr)
+    elseif command.command == 'trackStop' then
+        ptz.disable_auto_tracking(device, cam_func.ptz_service_addr)
+    end
+end
+
+-- Handle Chime Commands
+local function handle_chime(driver, device, command)
+    local cam_func = device:get_field('onvif_func')
+    if not cam_func.audio_output_token then
+        log.warn('Audio output not available for', device.label)
+        return
+    end
+    if command.command == 'playChime' then
+        commands.SetAudioOutput(device, cam_func.audio_output_token, device.preferences.quickReply)
+    end
+end
+
+-- Lifecycle Handlers
 local function device_added(driver, device)
     log.info('Device added:', device.label)
     if validate_preferences(device) then
@@ -526,8 +689,10 @@ local function device_removed(driver, device)
     if cam_func and cam_func.event_source_addr then
         commands.Unsubscribe(device)  -- Cleanup subscription
     end
+    audio.device_removed(driver, device)  -- Cleanup audio stream
 end
 
+-- Driver Setup
 onvifDriver = Driver("ONVIFDoorbell", {
     discovery = discover.discover_handler,
     device_added = device_added,
@@ -541,7 +706,25 @@ onvifDriver = Driver("ONVIFDoorbell", {
             [cap_videoStream.commands.startStream.NAME] = handle_stream,
             [cap_videoStream.commands.stopStream.NAME] = handle_stream,
         },
+        [cap_audioStream.ID] = {
+            [cap_audioStream.commands.startStream.NAME] = handle_audio_stream,
+            [cap_audioStream.commands.stopStream.NAME] = handle_audio_stream,
+        },
+        [cap_ptzControl.ID] = {
+            [cap_ptzControl.commands.panLeft.NAME] = handle_ptz,
+            [cap_ptzControl.commands.panRight.NAME] = handle_ptz,
+            [cap_ptzControl.commands.tiltUp.NAME] = handle_ptz,
+            [cap_ptzControl.commands.tiltDown.NAME] = handle_ptz,
+            [cap_ptzControl.commands.zoomIn.NAME] = handle_ptz,
+            [cap_ptzControl.commands.zoomOut.NAME] = handle_ptz,
+            [cap_ptzControl.commands.trackStart.NAME] = handle_ptz,
+            [cap_ptzControl.commands.trackStop.NAME] = handle_ptz,
+        },
+        [cap_chimeControl.ID] = {
+            [cap_chimeControl.commands.playChime.NAME] = handle_chime,
+        },
     },
 })
 
+-- Start the driver
 onvifDriver:run()

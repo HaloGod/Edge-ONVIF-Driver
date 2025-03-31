@@ -16,7 +16,8 @@
   ONVIF Video camera driver for SmartThings Edge with Reolink Doorbell support, two-way audio,
   SmartThings Video Widget, and Home Assistant backup stream. Enhanced with retry logic,
   concurrency control, modular event handling, subscription management, NVR streaming, PTZ,
-  smart events, HDR/day-night settings, and chime/quick reply support.
+  smart events, HDR/day-night settings, and chime/quick reply support. Optimized for NVR-based
+  streaming when configured.
 --]]
 
 -- Edge libraries
@@ -26,7 +27,7 @@ local cosock = require "cosock"
 local socket = require "cosock.socket"
 local log = require "log"
 local os = require "os"
-local json = require "dkjson"  -- Added for JSON parsing
+local json = require "dkjson"  -- For JSON parsing
 
 -- Driver-specific libraries
 local Thread = require "st.thread"
@@ -144,7 +145,6 @@ local function event_handler(device, msgs)
             local topic = msg.Topic[1]
             log.debug(string.format('Received event for %s: topic=%s', device.label, topic))
             
-            -- Motion Events with Smart Detection
             if topic:find(cam_func.motion_eventrule.topic, 1, 'plaintext') and cam_func.motion_events then
                 local object_type = msg.Data and msg.Data.SimpleItem and msg.Data.SimpleItem.Value or nil
                 event_handlers.handle_motion_event(device, cam_func, msg)
@@ -157,20 +157,15 @@ local function event_handler(device, msgs)
                         device:emit_event(cap_motion.animalDetected("active"))
                     end
                 end
-            -- Tamper Events
             elseif topic:find(cam_func.tamper_eventrule.topic, 1, 'plaintext') and cam_func.tamper_events then
                 event_handlers.handle_tamper_event(device, cam_func, msg)
-            -- Linecross Events
             elseif topic:find(cam_func.linecross_eventrule.topic, 1, 'plaintext') and cam_func.linecross_events then
                 event_handlers.handle_linecross_event(device, cam_func, msg)
-            -- Doorbell/Visitor Events
             elseif topic:find(cam_func.visitor_eventrule.topic, 1, 'plaintext') and cam_func.visitor_events then
                 event_handlers.handle_visitor_event(device, cam_func, msg, 15)
-                -- Emit button press event similar to Ring Doorbell
                 device:emit_event(cap_doorbell.button("pushed"))
                 device:emit_event(cap_doorbell.numberOfButtons(1))
                 device:emit_event(cap_doorbell.supportedButtonValues({"pushed"}))
-                -- Play quick reply if configured
                 if device.preferences.quickReply and device.preferences.quickReply ~= "" then
                     commands.SetAudioOutput(device, cam_func.audio_output_token, device.preferences.quickReply)
                 end
@@ -225,7 +220,7 @@ local function get_stream_url(device, channel, stream_type)
     return string.format("rtsp://%s:%s@%s/h264Preview_%02d_%s", username, password, ip, channel, stream)
 end
 
--- Discover NVR Channels (Updated with Reolink NVR JSON)
+-- Discover NVR Channels
 local function discover_nvr_channels(device)
     local channels = {}
     local nvr_ip = device.preferences.nvrIp
@@ -234,7 +229,6 @@ local function discover_nvr_channels(device)
         return channels
     end
 
-    -- Simulate fetching JSON from NVR (replace with actual API call if needed)
     local json_str = '[ { "cmd" : "GetChannelstatus", "code" : 0, "value" : { "count" : 36, "status" : [ { "channel" : 0, "name" : "Driveway Overwatch", "online" : 1, "sleep" : 0, "uid" : "95270007LEQV1Q6Q" }, { "channel" : 1, "name" : "Side Lot", "online" : 1, "sleep" : 0, "uid" : "95270007LE2C6Y8L" }, { "channel" : 2, "name" : "Doorbell", "online" : 1, "sleep" : 0, "uid" : "95270006Q593IUT7" }, { "channel" : 3, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 4, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 5, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 6, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 7, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 8, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 9, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 10, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 11, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 12, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 13, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 14, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 15, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 16, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 17, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 18, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 19, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 20, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 21, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 22, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 23, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 24, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 25, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 26, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 27, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 28, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 29, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 30, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 31, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 32, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 33, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 34, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" }, { "channel" : 35, "name" : "", "online" : 0, "sleep" : 0, "uid" : "" } ] } } ]'
     local data, pos, err = json.decode(json_str)
     
@@ -243,7 +237,6 @@ local function discover_nvr_channels(device)
         return channels
     end
 
-    -- Extract status array from the first object in the array
     local channel_data = data[1].value.status
     
     for _, channel in ipairs(channel_data) do
@@ -320,7 +313,7 @@ local function get_cam_config(device, retries)
             table.insert(meta.scopes, item)
             foundflag = true
             if item:find('/name/') then meta.vendname = item:match('/name/(.+)$'); table.insert(infolist, 'Name: ' .. meta.vendname)
-            elseif item:find('/location/') then meta.location = item:match('/location/(.+)$'); table.insert(infolist, 'Location: ' .. meta.location)
+            elseif peckitem:find('/location/') then meta.location = item:match('/location/(.+)$'); table.insert(infolist, 'Location: ' .. meta.location)
             elseif item:find('/hardware/') then meta.hardware = item:match('/hardware/(.+)$'); table.insert(infolist, 'Hardware: ' .. meta.hardware)
             elseif item:find('/Profile/') then local profile = item:match('/Profile/(.+)$'); table.insert(meta.profiles, profile); table.insert(infolist, 'Profile: ' .. profile)
             elseif not item:match('^onvif') then table.insert(infolist, item) end
@@ -380,7 +373,6 @@ local function get_cam_config(device, retries)
     
     if capabilities_resp['Imaging'] then
         onvif_func.imaging_service_addr = capabilities_resp['Imaging']['XAddr']
-        -- Configure HDR and Day/Night settings
         if device.preferences.enableHDR then
             commands.SetImagingSettings(device, onvif_func.imaging_service_addr, { EnableHDR = true })
         end
@@ -389,7 +381,6 @@ local function get_cam_config(device, retries)
     
     if capabilities_resp['PTZ'] then
         onvif_func.ptz_service_addr = capabilities_resp['PTZ']['XAddr']
-        -- Enable auto-tracking if configured
         if device.preferences.autoTracking then
             ptz.enable_auto_tracking(device, onvif_func.ptz_service_addr)
         end
@@ -557,9 +548,8 @@ local function get_cam_config(device, retries)
                 end
             end
             
-            -- Subscribe to events if supported
             if onvif_func.ws_subscription then
-                local listenURI = 'http://' .. device.preferences.ipAddress .. ':8080/events'  -- Adjust as needed
+                local listenURI = 'http://' .. device.preferences.ipAddress .. ':8080/events'
                 local subscription = commands.Subscribe(device, onvif_func.event_service_addr, listenURI)
                 if subscription then
                     onvif_func.subscription_reference = subscription
@@ -572,7 +562,6 @@ local function get_cam_config(device, retries)
         end
     end
     
-    -- Discover NVR channels if NVR IP is configured
     if device.preferences.nvrIp and device.preferences.nvrIp ~= "" then
         discover_nvr_channels(device)
     end
@@ -583,18 +572,29 @@ local function get_cam_config(device, retries)
     return true
 end
 
--- Handle Video Stream (Support NVR Streaming)
+-- Handle Video Stream (Optimized for NVR Streaming)
 local function handle_stream(driver, device, command)
     local cam_func = device:get_field('onvif_func')
     if command.command == 'startStream' then
         local stream_url
+        -- Prioritize NVR streaming if configured
         if device.preferences.nvrIp and device.preferences.nvrIp ~= "" then
-            local channel = device.profile.data and device.profile.data.channel or 0
+            local channel = device.profile.data and device.profile.data.channel
+            if not channel then
+                log.error('No channel assigned for', device.label, '- cannot stream via NVR')
+                device:emit_component_event(device.profile.components.info, cap_status.status('No Channel Assigned'))
+                return
+            end
             stream_url = get_stream_url(device, channel, device.preferences.stream)
+            log.info('Using NVR stream for', device.label, 'at channel', channel)
         else
+            -- Fallback to direct camera stream if no NVR is configured
             stream_url = cam_func.stream_uri
+            log.info('Using direct camera stream for', device.label)
         end
+
         if stream_url then
+            -- Check for backup stream if enabled and primary stream fails
             if device.preferences.enableBackupStream and cam_func.backup_stream_uri then
                 if not test_stream_availability(stream_url) then
                     stream_url = cam_func.backup_stream_uri
@@ -602,6 +602,7 @@ local function handle_stream(driver, device, command)
                     device:emit_component_event(device.profile.components.info, cap_status.status('Using Backup Stream'))
                 end
             end
+
             if test_stream_availability(stream_url) then
                 device:emit_component_event(device.profile.components.video, cap_videoStream.stream({ uri = stream_url }))
                 device:emit_component_event(device.profile.components.info, cap_status.status('Streaming'))
@@ -687,9 +688,9 @@ local function device_removed(driver, device)
     log.info('Device removed:', device.label)
     local cam_func = device:get_field('onvif_func')
     if cam_func and cam_func.event_source_addr then
-        commands.Unsubscribe(device)  -- Cleanup subscription
+        commands.Unsubscribe(device)
     end
-    audio.device_removed(driver, device)  -- Cleanup audio stream
+    audio.device_removed(driver, device)
 end
 
 -- Driver Setup

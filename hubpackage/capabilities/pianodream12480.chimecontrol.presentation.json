@@ -1,0 +1,96 @@
+{
+  "dashboard": {
+    "states": [
+      {
+        "label": "Chime Status",
+        "capability": "pianodream12480.customChimeControl",
+        "attribute": "chimeStatus",
+        "alternatives": [
+          {
+            "key": "playing",
+            "value": "Playing"
+          },
+          {
+            "key": "idle",
+            "value": "Idle"
+          }
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "displayType": "pushButton",
+        "pushButton": {
+          "command": "playChime"
+        },
+        "visibility": {
+          "condition": {
+            "capability": "pianodream12480.customChimeControl",
+            "attribute": "chimeStatus",
+            "value": "idle"
+          }
+        }
+      }
+    ]
+  },
+  "detailView": [
+    {
+      "label": "Chime Status",
+      "displayType": "state",
+      "state": {
+        "label": "{{chimeStatus.value}}",
+        "alternatives": [
+          {
+            "key": "playing",
+            "value": "Playing",
+            "type": "active"
+          },
+          {
+            "key": "idle",
+            "value": "Idle",
+            "type": "inactive"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Play Chime",
+      "displayType": "pushButton",
+      "pushButton": {
+        "command": "playChime"
+      },
+      "visibility": {
+        "condition": {
+          "capability": "pianodream12480.customChimeControl",
+          "attribute": "chimeStatus",
+          "value": "idle"
+        }
+      }
+    }
+  ],
+  "automation": {
+    "conditions": [
+      {
+        "label": "Chime Status",
+        "displayType": "list",
+        "list": {
+          "value": "chimeStatus.value",
+          "valueType": "string",
+          "alternatives": [
+            {
+              "key": "playing",
+              "value": "Playing"
+            },
+            {
+              "key": "idle",
+              "value": "Idle"
+            }
+          ]
+        }
+      }
+    ],
+    "actions": []
+  },
+  "id": "pianodream12480.customChimeControl",
+  "version": 1
+}

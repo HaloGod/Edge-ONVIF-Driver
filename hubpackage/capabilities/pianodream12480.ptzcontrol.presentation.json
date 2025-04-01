@@ -1,0 +1,201 @@
+{
+  "dashboard": {
+    "states": [
+      {
+        "label": "PTZ Status",
+        "capability": "pianodream12480.customPtzControl",
+        "attribute": "ptzStatus",
+        "alternatives": [
+          {
+            "key": "tracking",
+            "value": "Tracking"
+          },
+          {
+            "key": "idle",
+            "value": "Idle"
+          }
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "displayType": "pushButton",
+        "pushButton": {
+          "command": "panLeft"
+        }
+      },
+      {
+        "displayType": "pushButton",
+        "pushButton": {
+          "command": "panRight"
+        }
+      },
+      {
+        "displayType": "pushButton",
+        "pushButton": {
+          "command": "tiltUp"
+        }
+      },
+      {
+        "displayType": "pushButton",
+        "pushButton": {
+          "command": "tiltDown"
+        }
+      },
+      {
+        "displayType": "pushButton",
+        "pushButton": {
+          "command": "zoomIn"
+        }
+      },
+      {
+        "displayType": "pushButton",
+        "pushButton": {
+          "command": "zoomOut"
+        }
+      },
+      {
+        "displayType": "pushButton",
+        "pushButton": {
+          "command": "trackStart"
+        },
+        "visibility": {
+          "condition": {
+            "capability": "pianodream12480.customPtzControl",
+            "attribute": "ptzStatus",
+            "value": "idle"
+          }
+        }
+      },
+      {
+        "displayType": "pushButton",
+        "pushButton": {
+          "command": "trackStop"
+        },
+        "visibility": {
+          "condition": {
+            "capability": "pianodream12480.customPtzControl",
+            "attribute": "ptzStatus",
+            "value": "tracking"
+          }
+        }
+      }
+    ]
+  },
+  "detailView": [
+    {
+      "label": "PTZ Status",
+      "displayType": "state",
+      "state": {
+        "label": "{{ptzStatus.value}}",
+        "alternatives": [
+          {
+            "key": "tracking",
+            "value": "Tracking",
+            "type": "active"
+          },
+          {
+            "key": "idle",
+            "value": "Idle",
+            "type": "inactive"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Pan Left",
+      "displayType": "pushButton",
+      "pushButton": {
+        "command": "panLeft"
+      }
+    },
+    {
+      "label": "Pan Right",
+      "displayType": "pushButton",
+      "pushButton": {
+        "command": "panRight"
+      }
+    },
+    {
+      "label": "Tilt Up",
+      "displayType": "pushButton",
+      "pushButton": {
+        "command": "tiltUp"
+      }
+    },
+    {
+      "label": "Tilt Down",
+      "displayType": "pushButton",
+      "pushButton": {
+        "command": "tiltDown"
+      }
+    },
+    {
+      "label": "Zoom In",
+      "displayType": "pushButton",
+      "pushButton": {
+        "command": "zoomIn"
+      }
+    },
+    {
+      "label": "Zoom Out",
+      "displayType": "pushButton",
+      "pushButton": {
+        "command": "zoomOut"
+      }
+    },
+    {
+      "label": "Start Tracking",
+      "displayType": "pushButton",
+      "pushButton": {
+        "command": "trackStart"
+      },
+      "visibility": {
+        "condition": {
+          "capability": "pianodream12480.customPtzControl",
+          "attribute": "ptzStatus",
+          "value": "idle"
+        }
+      }
+    },
+    {
+      "label": "Stop Tracking",
+      "displayType": "pushButton",
+      "pushButton": {
+        "command": "trackStop"
+      },
+      "visibility": {
+        "condition": {
+          "capability": "pianodream12480.customPtzControl",
+          "attribute": "ptzStatus",
+          "value": "tracking"
+        }
+      }
+    }
+  ],
+  "automation": {
+    "conditions": [
+      {
+        "label": "PTZ Status",
+        "displayType": "list",
+        "list": {
+          "value": "ptzStatus.value",
+          "valueType": "string",
+          "alternatives": [
+            {
+              "key": "tracking",
+              "value": "Tracking"
+            },
+            {
+              "key": "idle",
+              "value": "Idle"
+            }
+          ]
+        }
+      }
+    ],
+    "actions": []
+  },
+  "id": "pianodream12480.customPtzControl",
+  "version": 1
+}

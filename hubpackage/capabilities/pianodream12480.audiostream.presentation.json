@@ -1,0 +1,46 @@
+{
+  "dashboard": {
+    "states": [],
+    "actions": []
+  },
+  "detailView": [
+    {
+      "label": "Audio Stream",
+      "displayType": "state",
+      "state": {
+        "label": "{{stream.value}}"
+      }
+    },
+    {
+      "label": "Start Stream",
+      "displayType": "pushButton",
+      "pushButton": {
+        "command": "startStream",
+        "argumentType": "none"
+      }
+    },
+    {
+      "label": "Stop Stream",
+      "displayType": "pushButton",
+      "pushButton": {
+        "command": "stopStream",
+        "argumentType": "none"
+      }
+    }
+  ],
+  "automation": {
+    "conditions": [],
+    "actions": [
+      {
+        "label": "Start Stream",
+        "command": "startStream",
+        "argumentType": "none"
+      },
+      {
+        "label": "Stop Stream",
+        "command": "stopStream",
+        "argumentType": "none"
+      }
+    ]
+  }
+}

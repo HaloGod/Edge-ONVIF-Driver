@@ -1,0 +1,23 @@
+{
+  "id": "pianodream12480.audiostream",
+  "version": 1,
+  "name": "Custom Audio Stream Capability",
+  "attributes": {
+    "stream": {
+      "schema": {
+        "type": "object"
+      },
+      "enumCommands": []
+    }
+  },
+  "commands": {
+    "startStream": {
+      "name": "startStream",
+      "arguments": []
+    },
+    "stopStream": {
+      "name": "stopStream",
+      "arguments": []
+    }
+  }
+}

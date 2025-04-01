@@ -1,0 +1,29 @@
+{
+  "id": "pianodream12480.customChimeControl",
+  "version": 1,
+  "status": "proposed",
+  "name": "Custom Chime Control",
+  "attributes": {
+    "chimeStatus": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "enum": ["playing", "idle"]
+          }
+        },
+        "additionalProperties": false,
+        "required": ["value"]
+      },
+      "setter": null,
+      "enumCommands": []
+    }
+  },
+  "commands": {
+    "playChime": {
+      "name": "playChime",
+      "arguments": []
+    }
+  }
+}

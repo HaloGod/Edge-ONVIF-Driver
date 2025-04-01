@@ -1,0 +1,77 @@
+{
+  "dashboard": {
+    "states": [
+      {
+        "label": "Audio Status",
+        "capability": "pianodream12480.twoWayAudio",
+        "attribute": "audioStatus",
+        "alternatives": [
+          {
+            "key": "active",
+            "value": "Active"
+          },
+          {
+            "key": "inactive",
+            "value": "Inactive"
+          }
+        ]
+      }
+    ],
+    "actions": []
+  },
+  "detailView": [
+    {
+      "label": "Two-Way Audio",
+      "displayType": "switch",
+      "switch": {
+        "command": {
+          "on": "startAudio",
+          "off": "stopAudio"
+        },
+        "state": {
+          "value": "audioStatus.value",
+          "valueType": "string",
+          "on": "active",
+          "off": "inactive",
+          "alternatives": [
+            {
+              "key": "active",
+              "value": "Active",
+              "type": "active"
+            },
+            {
+              "key": "inactive",
+              "value": "Inactive",
+              "type": "inactive"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "automation": {
+    "conditions": [
+      {
+        "label": "Audio is active",
+        "displayType": "list",
+        "list": {
+          "value": "audioStatus.value",
+          "valueType": "string",
+          "alternatives": [
+            {
+              "key": "active",
+              "value": "Active"
+            },
+            {
+              "key": "inactive",
+              "value": "Inactive"
+            }
+          ]
+        }
+      }
+    ],
+    "actions": []
+  },
+  "id": "pianodream12480.twoWayAudio",
+  "version": 1
+}

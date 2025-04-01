@@ -1,0 +1,57 @@
+{
+  "id": "pianodream12480.ptzcontrol",
+  "version": 1,
+  "status": "proposed",
+  "name": "Custom PTZ Control",
+  "attributes": {
+    "ptzStatus": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "enum": ["tracking", "idle"]
+          }
+        },
+        "additionalProperties": false,
+        "required": ["value"]
+      },
+      "setter": null,
+      "enumCommands": []
+    }
+  },
+  "commands": {
+    "panLeft": {
+      "name": "panLeft",
+      "arguments": []
+    },
+    "panRight": {
+      "name": "panRight",
+      "arguments": []
+    },
+    "tiltUp": {
+      "name": "tiltUp",
+      "arguments": []
+    },
+    "tiltDown": {
+      "name": "tiltDown",
+      "arguments": []
+    },
+    "zoomIn": {
+      "name": "zoomIn",
+      "arguments": []
+    },
+    "zoomOut": {
+      "name": "zoomOut",
+      "arguments": []
+    },
+    "trackStart": {
+      "name": "trackStart",
+      "arguments": []
+    },
+    "trackStop": {
+      "name": "trackStop",
+      "arguments": []
+    }
+  }
+}

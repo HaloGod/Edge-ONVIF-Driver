@@ -48,7 +48,7 @@ local cap_refresh = capabilities["pianodream12480.refresh"]
 local cap_motion = capabilities["pianodream12480.motionevents2"]
 local cap_linecross = capabilities["pianodream12480.linecross"]
 local cap_doorbell = capabilities["pianodream12480.doorbell"]
-local cap_audioStream = capabilities["pianodream12480.audioStream"]
+local cap_audioStream = capabilities["pianodream12480.twowayaudio"]
 local cap_ptzControl = capabilities["pianodream12480.ptzControl"]
 local cap_chimeControl = capabilities["pianodream12480.chimeControl"]
 
@@ -217,7 +217,7 @@ local function get_stream_url(device, channel, stream_type)
     local username = device.preferences.userid
     local password = device.preferences.password
     local stream = stream_type == "mainstream" and "main" or "sub"
-    return string.format("rtsp://%s:%s@%s/h264Preview_%02d_%s", username, password, ip, channel, stream)
+    return string.format("rtsp://%s:%s@%s:554/h264Preview_%02d_%s", username, password, ip, channel + 1, stream)
 end
 
 -- Discover NVR Channels

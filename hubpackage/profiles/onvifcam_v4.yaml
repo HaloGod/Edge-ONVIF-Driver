@@ -65,7 +65,7 @@ preferences:
     definition:
       minLength: 7
       maxLength: 15
-      default: ""
+      default: "192.168.1.100"  # Updated default to meet length requirement
   - name: "port"
     title: "Camera Port"
     description: "Enter the port number of the camera (default: 80)"

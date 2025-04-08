@@ -8,9 +8,9 @@ components:
   - id: main
     label: Main
     capabilities:
-      - id: pianodream12480.onvifstatus
+      - id: pianodream12480.onvifStatus
         version: 1
-      - id: pianodream12480.onvifinfo
+      - id: pianodream12480.onvifInfo
         version: 1
       - id: pianodream12480.refresh
         version: 1
@@ -23,12 +23,12 @@ components:
     capabilities:
       - id: motionSensor
         version: 1
-      - id: pianodream12480.motionevents2  # Extended for smart events (Person/Vehicle/Animal)
+      - id: pianodream12480.motionevents2
         version: 1
   - id: lineComponent
     label: Line Cross Events
     capabilities:
-      - id: pianodelay12480.linecross
+      - id: pianodream12480.linecross
         version: 1
   - id: tamperComponent
     label: Tamper Events
@@ -38,7 +38,7 @@ components:
   - id: doorbellComponent
     label: Doorbell
     capabilities:
-      - id: pianodream12480.doorbell  # Updated for button press
+      - id: pianodream12480.doorbell
         version: 1
   - id: audioComponent
     label: Audio Communication
@@ -47,7 +47,7 @@ components:
         version: 1
       - id: pianodream12480.audioOutput
         version: 1
-      - id: pianodream12480.audioStream  # New for Profile T audio
+      - id: pianodream12480.twoWayAudio
         version: 1
   - id: videoComponent
     label: Video Stream
@@ -59,12 +59,12 @@ components:
   - id: trackMixComponent
     label: TrackMix Controls
     capabilities:
-      - id: pianodream12480.ptzControl  # New for PTZ and auto-tracking
+      - id: pianodream12480.customPtzControl
         version: 1
   - id: chimeComponent
     label: Chime
     capabilities:
-      - id: pianodream12480.chimeControl  # New for chime and quick reply
+      - id: pianodream12480.customChimeControl
         version: 1
 preferences:
   - title: "Command Timeout"
@@ -197,7 +197,7 @@ preferences:
       default: base
   - title: "UserID"
     name: userid
-    description: "Camera sign-in userid"
+    description: "Camera or NVR sign-in userid"
     required: true
     preferenceType: string
     definition:
@@ -207,7 +207,7 @@ preferences:
       default: "*****"
   - title: "Password"
     name: password
-    description: "Camera sign-in password"
+    description: "Camera or NVR sign-in password"
     required: true
     preferenceType: string
     definition:
@@ -227,7 +227,7 @@ preferences:
       default: md5
   - title: "NVR IP Address"
     name: nvrIp
-    description: "IP of RLN36 NVR (leave blank for direct camera access)"
+    description: "IP of RLN36 NVR (if set, all streams will come from the NVR instead of cameras)"
     required: false
     preferenceType: string
     definition:

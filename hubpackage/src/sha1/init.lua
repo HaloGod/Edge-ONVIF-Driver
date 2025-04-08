@@ -8,6 +8,15 @@
   Initializes the SHA-1 library with error handling, version detection, and configuration options.
   Prepares the library for use in environments like SmartThings Edge with ONVIF drivers.
   Includes self-tests and utility functions for robust integration.
+
+  CONFIGURATION
+  To customize the library, set the global table `_G.SHA1_CONFIG` before loading this module.
+  Example:
+    _G.SHA1_CONFIG = { debug_mode = true, force_pure_lua = false }
+  Available options:
+    - force_pure_lua (boolean): Use pure Lua implementation even if native ops are available (default: false)
+    - precompute_tables (boolean): Precompute XOR tables for HMAC performance (default: true)
+    - debug_mode (boolean): Enable debug logging (default: false)
 --]]
 
 -- Attempt to load a logging module (e.g., from SmartThings Edge), fallback to print
@@ -47,12 +56,20 @@ sha1_module = sha1_err  -- Adjust for pcall return
 local lua_version = _VERSION:match("Lua%s+(%d+%.%d+)") or "unknown"
 log.info("Initializing SHA-1 library on " .. _VERSION)
 
--- Configuration options (can be overridden by environment or runtime)
-local config = {
-    force_pure_lua = os.getenv("SHA1_FORCE_PURE_LUA") == "true" or false,  -- Env var override
-    precompute_tables = os.getenv("SHA1_PRECOMPUTE_TABLES") ~= "false" or true,  -- Default true unless disabled
-    debug_mode = os.getenv("SHA1_DEBUG") == "true" or false  -- Enable verbose logging
+-- Default configuration options (can be overridden via _G.SHA1_CONFIG)
+local default_config = {
+    force_pure_lua = false,  -- Use native operations if available
+    precompute_tables = true,  -- Precompute tables for performance
+    debug_mode = false  -- No debug logging by default
 }
+
+-- Check for global configuration override (_G.SHA1_CONFIG)
+local config = _G.SHA1_CONFIG or {}
+for k, v in pairs(default_config) do
+    if config[k] == nil then
+        config[k] = v  -- Use default if not overridden
+    end
+end
 
 -- Check for bit operations availability
 local has_bit32, bit32 = pcall(function() return require "bit32" end)

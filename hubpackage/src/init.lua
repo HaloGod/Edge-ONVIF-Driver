@@ -49,8 +49,8 @@ local cap_motion = capabilities["pianodream12480.motionevents2"]
 local cap_linecross = capabilities["pianodream12480.linecross"]
 local cap_doorbell = capabilities["pianodream12480.doorbell"]
 local cap_audioStream = capabilities["pianodream12480.twowayaudio"]
-local cap_ptzControl = capabilities["pianodream12480.ptzControl"]
-local cap_chimeControl = capabilities["pianodream12480.chimeControl"]
+local cap_ptzControl = capabilities["pianodream12480.customptzControl"]
+local cap_chimeControl = capabilities["pianodream12480.customchimeControl"]
 
 -- Standard capabilities
 local cap_videoStream = capabilities.videoStream

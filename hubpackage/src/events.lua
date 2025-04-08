@@ -22,6 +22,7 @@ local http = cosock.asyncify "socket.http"
 local ltn12 = require "ltn12"
 local Thread = require "st.thread"
 local log = require "log"
+local capabilities = require "st.capabilities"
 
 local commands = require "commands"
 local discover = require "discover"
@@ -108,7 +109,6 @@ local function process_http_message(client)
   end
 end
 
--- Handle event connections from device
 local function eventaccept_handler(eventsock)
   local client, accept_err = eventsock:accept()
   
@@ -260,5 +260,24 @@ local function renew_subscribe(eventserver)
       
       if renew_time.duration >= 60 then
         log.debug(string.format('Re-scheduling subscription renewal to run in %02d:%02d', renew_time.interval.min, renew_time.interval.sec))
-        eventserver.renew_timer = device.thread:call_with_delay(renew_time.interval.totsecs, 
-                                                               
+        eventserver.renew_timer = device.thread:call_with_delay(
+          renew_time.interval.totsecs, 
+          function() renew_subscribe(eventserver) end, 
+          "Subscription Renewal Timer"
+        )
+      else
+        log.warn('Renewal duration too short:', renew_time.duration)
+      end
+    else
+      log.error('Failed to process renewal time for', device.label)
+    end
+  else
+    log.error('Subscription renewal failed for', device.label)
+  end
+end
+
+-- Export functions
+return {
+  init = init,
+  renew_subscribe = renew_subscribe,
+}

@@ -19,7 +19,7 @@ else
 end
 
 -- Detect bitwise operation support
-local bit32
+local bit32 = require "bit32"
 local has_bit32 = pcall(function() bit32 = require "bit32" end)
 local has_lua53 = _VERSION:match("Lua%s+5%.3") or _VERSION:match("Lua%s+5%.4")
 
@@ -87,14 +87,15 @@ if has_lua53 then
         return a ~ b ~ c ~ d
     end
 
-    --- Computes ternary operation (b AND c) OR (NOT a AND c) for uint32 numbers.
+    --- Computes c | (~a & b) for uint32 numbers.
     -- @param a First uint32
     -- @param b Second uint32
     -- @param c Third uint32
     -- @return Resulting uint32
     function ops.uint32_ternary(a, b, c)
         validate_uint32("uint32_ternary", a, b, c)
-        return c ~ (a & (b ~ c))
+        local not_a = (~a) & 0xFFFFFFFF
+        return (c | (not_a & b)) & 0xFFFFFFFF
     end
 
     --- Computes majority operation (a AND b) OR (a AND c) OR (b AND c) for uint32 numbers.
@@ -207,7 +208,8 @@ else
             local bit_a = math.floor(a / (2 ^ i)) % 2
             local bit_b = math.floor(b / (2 ^ i)) % 2
             local bit_c = math.floor(c / (2 ^ i)) % 2
-            result = result + (((bit_a == 1 and bit_b or bit_c) == 1) and (2 ^ i) or 0)
+            local not_a = 1 - bit_a
+            result = result + ((bit_c | (not_a & bit_b)) * (2 ^ i))
         end
         return result
     end

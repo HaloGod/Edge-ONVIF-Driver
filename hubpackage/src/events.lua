@@ -12,6 +12,7 @@
   and limitations under the License.
 
   DESCRIPTION
+  
   ONVIF Camera event handler
 --]]
 
@@ -32,7 +33,7 @@ local shutdown = false
 
 local eventing_thread
 
-local DEFAULT_SUBSCRIBE_DURATION = 600		
+local DEFAULT_SUBSCRIBE_DURATION = 600    
 local REOLINK_ID = 'IPC-BO'
 
 local function process_http_message(client)
@@ -198,7 +199,7 @@ local function init(driver, eventserver)
     cosock.spawn(function()
       while shutdown == false do
         eventaccept_handler(eventserver.sock)
-      end	
+      end 
     end)
     
     log.info("Event server started and listening on: " .. ip .. ":" .. port)
@@ -208,7 +209,7 @@ local function init(driver, eventserver)
     eventserver.sock:close()
     eventserver.sock = nil
     return false
-  end	
+  end 
 end
 
 local function proc_renew_time(eventserver, response)
@@ -260,176 +261,4 @@ local function renew_subscribe(eventserver)
       if renew_time.duration >= 60 then
         log.debug(string.format('Re-scheduling subscription renewal to run in %02d:%02d', renew_time.interval.min, renew_time.interval.sec))
         eventserver.renew_timer = device.thread:call_with_delay(renew_time.interval.totsecs, 
-                                                                function()
-                                                                  renew_subscribe(eventserver)
-                                                                end,
-                                                                "Subscription renewal timer")
-        return response
-      else
-        log.error('Invalid duration; ignored')
-      end
-    end
-  else
-    log.error('Subscription renewal failed for', device.label)
-    if device:get_field('onvif_online') == false then
-      local discotype = device:get_field('onvif_disco').discotype
-      if (discotype == nil) or (discotype == 'auto') then
-        discover.schedule_rediscover(onvifDriver, device, 20, init_device)
-      end
-    end
-  end
-end
-
-local function _do_subscribe(eventserver)
-  local listen_uri = string.format('http://%s:%s/event', eventserver.listen_ip, eventserver.listen_port)
-  local device = eventserver.device
-  
-  log.info('Subscribing to events for', device.label)
-  
-  local cam_func = device:get_field('onvif_func')
-  local cam_meta = device:get_field('onvif_disco')
-  
-  local response
-  local max_attempts = 3
-  for attempt = 1, max_attempts do
-    response = commands.Subscribe(device, cam_func.event_service_addr, listen_uri)
-    if response then break end
-    log.warn(string.format("Subscribe attempt %d failed for %s, retrying...", attempt, device.label))
-    socket.sleep(5)
-  end
-  
-  if response then
-    if common.is_element(response, {'SubscriptionReference', 'ReferenceParameters'}) then
-      if response.SubscriptionReference.ReferenceParameters.SubscriptionId then
-        local SubscriptionId = response.SubscriptionReference.ReferenceParameters.SubscriptionId
-        cam_func.subscriptionid = {}
-        cam_func.subscriptionid.id = SubscriptionId[1]
-        if SubscriptionId._attr then
-          for key, value in pairs(SubscriptionId._attr) do
-            cam_func.subscriptionid.attr = key .. '="' .. value .. '"'
-          end
-        end
-        device:set_field('onvif_func', cam_func)
-        log.debug(string.format('Found Subscription ID [%s], attr: %s', cam_func.subscriptionid.id, cam_func.subscriptionid.attr or 'none'))
-      else
-        log.warn('Unexpected reference parameter')
-      end
-    end
-    
-    local renew_time = proc_renew_time(eventserver, response)
-    
-    if renew_time then
-      log.info('Successfully subscribed to events for', device.label)
-      log.info(string.format('\tDuration = %s minutes', renew_time.duration/60))
-      log.info('\tRef Address:', response.SubscriptionReference.Address)
-      log.debug(string.format('Scheduling subscription renewal to run in %02d:%02d', renew_time.interval.min, renew_time.interval.sec))
-      
-      local resubscribe_function
-      if cam_meta.vendname == REOLINK_ID then
-        resubscribe_function = _do_subscribe
-      else
-        resubscribe_function = renew_subscribe
-      end
-      eventserver.renew_timer = device.thread:call_with_delay(renew_time.interval.totsecs, 
-                                                              function()
-                                                                resubscribe_function(eventserver)
-                                                              end,
-                                                              "Refresh Subscription timer")
-      return response
-    else
-      log.warn('Failed to process renew time for subscription')
-    end
-  else
-    log.error('Subscription failed for', device.label)
-    if device:get_field('onvif_online') == false then
-      if (cam_meta.discotype == nil) or (cam_meta.discotype == 'auto') then
-        discover.schedule_rediscover(onvifDriver, device, 20, init_device)
-      end
-    end
-  end
-end
-
-local function subscribe(driver, device, eventname, callback)
-  local eventserver
-  local device_network_id = device.device_network_id
-  
-  for id, evntsrvr in pairs(eventservers) do
-    if id == device_network_id then
-      eventserver = evntsrvr
-    end
-  end
-  
-  local continue = true
-  
-  if eventserver == nil then
-    eventservers[device_network_id] = {}
-    eventserver = eventservers[device_network_id]
-    continue = init(driver, eventserver)
-  end
-  
-  if continue then
-    eventserver.device = device
-    eventserver.eventname = eventname
-    eventserver.callback = callback
-    
-    local cam_meta = device:get_field('onvif_disco')
-    
-    if not (cam_meta.ip) then
-      log.error('Camera IP not known; cannot subscribe to', device.label)
-      return nil
-    end
-
-    if eventserver.listen_port == nil then
-      log.error("Cannot subscribe, no event listen server address available:", device.label)
-      return nil
-    end
-    
-    if not eventserver.sock then
-      log.error('No event server socket for', device.label)
-      return nil
-    end
-    
-    local subscribe_response = _do_subscribe(eventserver)
-    
-    if not subscribe_response then
-      device.thread:unregister_socket(eventserver.sock)
-      eventserver.sock:close()
-      eventserver.eventing_thread:close()
-      eventservers[device_network_id] = nil
-    end
-    
-    return subscribe_response
-  else
-    log.error('Subscribe failed for', device.label)
-  end
-  
-  return false
-end
-
-local function shutdownserver(driver, device)
-  local device_network_id = device.device_network_id
-  local eventserver
-  
-  for id, evntsrvr in pairs(eventservers) do
-    if id == device_network_id then
-      eventserver = evntsrvr
-    end
-  end
-
-  if eventserver then
-    shutdown = true
-    eventserver.sock:close()
-    eventserver.eventing_thread:close()
-    if eventserver.renew_timer then
-      driver:cancel_timer(eventserver.renew_timer)
-    end
-    log.info('Event server shutdown for device', device.label)
-  end
-  
-  eventservers[device_network_id] = nil
-end
-
-return {
-  subscribe = subscribe,
-  shutdownserver = shutdownserver,
-}
+                                                               

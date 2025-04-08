@@ -2,269 +2,132 @@ name: ONVIF-Doorbell
 metadata:
   deviceType: Camera
   ocfDeviceType: x.com.st.d.camera
-  vid: onvif-doorbell
+  vid: onvifcam_v4
   mnmn: SmartThings
 components:
-  - id: main
-    label: Main
-    capabilities:
-      - id: pianodream12480.onvifStatus
-        version: 1
-      - id: pianodream12480.onvifInfo
-        version: 1
-      - id: pianodream12480.refresh
-        version: 1
-      - id: videoStream
-        version: 1
-    categories:
-      - name: Camera
-  - id: motionComponent
-    label: Motion Events
-    capabilities:
-      - id: motionSensor
-        version: 1
-      - id: pianodream12480.motionevents2
-        version: 1
-  - id: lineComponent
-    label: Line Cross Events
-    capabilities:
-      - id: pianodream12480.linecross
-        version: 1
-  - id: tamperComponent
-    label: Tamper Events
-    capabilities:
-      - id: tamperAlert
-        version: 1
-  - id: doorbellComponent
-    label: Doorbell
-    capabilities:
-      - id: pianodream12480.doorbell
-        version: 1
-  - id: audioComponent
-    label: Audio Communication
-    capabilities:
-      - id: audioCapture
-        version: 1
-      - id: pianodream12480.audioOutput
-        version: 1
-      - id: pianodream12480.twoWayAudio
-        version: 1
-  - id: videoComponent
-    label: Video Stream
-    capabilities:
-      - id: videoStream
-        version: 1
-    categories:
-      - name: Camera
-  - id: trackMixComponent
-    label: TrackMix Controls
-    capabilities:
-      - id: pianodream12480.customPtzControl
-        version: 1
-  - id: chimeComponent
-    label: Chime
-    capabilities:
-      - id: pianodream12480.customChimeControl
-        version: 1
+- id: main
+  label: Main
+  capabilities:
+  - id: pianodream12480.onvifStatus
+    version: 1
+  - id: pianodream12480.onvifInfo
+    version: 1
+  - id: pianodream12480.refresh
+    version: 1
+- id: motionComponent
+  label: Motion Events
+  capabilities:
+  - id: pianodream12480.motionevents2
+    version: 1
+- id: lineComponent
+  label: Line Cross Events
+  capabilities:
+  - id: pianodream12480.linecross
+    version: 1
+- id: tamperComponent
+  label: Tamper Events
+  capabilities:
+  - id: tamperAlert
+    version: 1
+- id: doorbellComponent
+  label: Doorbell
+  capabilities:
+  - id: pianodream12480.doorbell
+    version: 1
+- id: audioComponent
+  label: Audio Communication
+  capabilities:
+  - id: pianodream12480.twoWayAudio
+    version: 1
+  - id: pianodream12480.audioOutput
+    version: 1
+- id: videoComponent
+  label: Video Stream
+  capabilities:
+  - id: videoStream
+    version: 1
+- id: trackMixComponent
+  label: TrackMix Controls
+  capabilities:
+  - id: pianodream12480.customPtzControl
+    version: 1
+- id: chimeComponent
+  label: Chime
+  capabilities:
+  - id: pianodream12480.customChimeControl
+    version: 1
 preferences:
-  - title: "Command Timeout"
-    name: commandtimeout
-    description: "Seconds for ONVIF command timeout"
+  - name: "ipAddress"
+    title: "Camera IP Address"
+    description: "Enter the IP address of the camera"
+    required: true
+    preferenceType: string
+    definition:
+      minLength: 7
+      maxLength: 15
+      default: ""
+  - name: "port"
+    title: "Camera Port"
+    description: "Enter the port number of the camera (default: 80)"
     required: false
     preferenceType: integer
     definition:
       minimum: 1
-      maximum: 30
-      default: 10
-  - title: "Enable Two-Way Audio"
-    name: enableTwoWayAudio
-    description: "Enable two-way audio communication"
-    required: false
-    preferenceType: boolean
-    definition:
-      default: true
-  - title: "Audio File Path"
-    name: audioFilePath
-    description: "Path to audio file for two-way communication"
-    required: false
+      maximum: 65535
+      default: 80
+  - name: "userid"
+    title: "Camera Username"
+    description: "Enter the username for camera authentication"
+    required: true
     preferenceType: string
     definition:
-      stringType: text
-      minLength: 3
-      maxLength: 120
-      default: "/path/to/audio/file.wav"
-  - title: "Enable Backup Stream"
-    name: enableBackupStream
-    description: "Enable backup stream from Home Assistant"
-    required: false
-    preferenceType: boolean
-    definition:
-      default: false
-  - title: "Backup Stream URL"
-    name: backupStreamUrl
-    description: "URL for Home Assistant backup stream"
-    required: false
+      minLength: 1
+      maxLength: 50
+      default: "*****"
+  - name: "password"
+    title: "Camera Password"
+    description: "Enter the password for camera authentication"
+    required: true
     preferenceType: string
     definition:
-      stringType: text
-      minLength: 3
-      maxLength: 120
-      default: "https://[ha_url]/api/camera_proxy_stream/camera.reolink_doorbell?token=[ha_token]"
-  - title: "Minimum Motion-Active Interval"
-    name: minmotioninterval
-    description: "Number of seconds between motion events"
+      minLength: 1
+      maxLength: 50
+      default: "*****"
+  - name: "stream"
+    title: "Stream Type"
+    description: "Select the stream type (mainstream or substream)"
     required: false
-    preferenceType: integer
-    definition:
-      minimum: 0
-      maximum: 3600
-      default: 10
-  - title: "Auto Motion Revert"
-    name: autorevert
-    description: "Select behavior for motion revert"
-    required: true
-    preferenceType: enumeration
-    definition:
-      options:
-        yesauto: "Auto-revert"
-        noauto: "No auto-revert"
-      default: noauto
-  - title: "Auto Motion Revert Delay"
-    name: revertdelay
-    description: "Number of seconds before reverting motion state"
-    required: false
-    preferenceType: integer
-    definition:
-      minimum: 1
-      maximum: 3600
-      default: 5
-  - title: "Minimum Linecross Interval"
-    name: minlinecrossinterval
-    description: "Number of seconds between line cross events"
-    required: false
-    preferenceType: integer
-    definition:
-      minimum: 0
-      maximum: 3600
-      default: 10
-  - title: "Minimum Tamper Interval"
-    name: mintamperinterval
-    description: "Number of seconds between tamper events"
-    required: false
-    preferenceType: integer
-    definition:
-      minimum: 0
-      maximum: 3600
-      default: 0
-  - title: "Minimum Visitor Interval"
-    name: minvisitorinterval
-    description: "Number of seconds between visitor/doorbell events"
-    required: false
-    preferenceType: integer
-    definition:
-      minimum: 0
-      maximum: 3600
-      default: 10
-  - title: "Video Stream Selection"
-    name: stream
-    description: "Select video stream type"
-    required: true
     preferenceType: enumeration
     definition:
       options:
         mainstream: "Main Stream"
         substream: "Sub Stream"
-      default: substream
-  - title: "Motion Rule Selection"
-    name: motionrule
-    description: "Select motion detection rule"
-    required: true
-    preferenceType: enumeration
-    definition:
-      options:
-        cell: "RuleEngine/CellMotionDetector"
-        alarm: "VideoSource/MotionAlarm"
-      default: cell
-  - title: "Event Subscription Method"
-    name: eventmethod
-    description: "Select event subscription method"
-    required: true
-    preferenceType: enumeration
-    definition:
-      options:
-        base: "Base"
-        pullpoint: "Pull-point"
-      default: base
-  - title: "UserID"
-    name: userid
-    description: "Camera or NVR sign-in userid"
-    required: true
-    preferenceType: string
-    definition:
-      stringType: text
-      minLength: 3
-      maxLength: 36
-      default: "*****"
-  - title: "Password"
-    name: password
-    description: "Camera or NVR sign-in password"
-    required: true
-    preferenceType: string
-    definition:
-      stringType: text
-      minLength: 3
-      maxLength: 36
-      default: "*****"
-  - title: "Authentication Algorithm"
-    name: authAlgo
-    description: "Hash algorithm for Digest auth (md5 or sha1)"
-    required: false
-    preferenceType: enumeration
-    definition:
-      options:
-        md5: "MD5"
-        sha1: "SHA-1"
-      default: md5
-  - title: "NVR IP Address"
-    name: nvrIp
-    description: "IP of RLN36 NVR (if set, all streams will come from the NVR instead of cameras)"
-    required: false
-    preferenceType: string
-    definition:
-      stringType: text
-      minLength: 0
-      maxLength: 15
-      default: ""
-  - title: "Enable HDR"
-    name: enableHDR
-    description: "Enable High Dynamic Range imaging"
+      default: "mainstream"
+  - name: "enableTwoWayAudio"
+    title: "Enable Two-Way Audio"
+    description: "Enable two-way audio if supported"
     required: false
     preferenceType: boolean
     definition:
       default: false
-  - title: "Day/Night Threshold"
-    name: dayNightThreshold
-    description: "Threshold for switching between day and night modes (0-100)"
+  - name: "audioFilePath"
+    title: "Audio File Path"
+    description: "Path to audio file for quick reply"
     required: false
-    preferenceType: integer
+    preferenceType: string
     definition:
-      minimum: 0
-      maximum: 100
-      default: 50
-  - title: "Enable Auto-Tracking"
-    name: autoTracking
-    description: "Enable auto-tracking for PTZ cameras"
-    required: false
-    preferenceType: boolean
-    definition:
-      default: false
-  - title: "Quick Reply Message"
-    name: quickReply
+      default: "/default/audio.wav"
+  - name: "quickReply"
+    title: "Quick Reply Message"
     description: "Message to play when doorbell is pressed"
     required: false
     preferenceType: string
     definition:
-      stringType: text
-      minLength: 0
-      maxLength: 120
       default: "Please wait."
+  - name: "nvrIp"
+    title: "NVR IP Address"
+    description: "Enter the IP address of the NVR (optional)"
+    required: false
+    preferenceType: string
+    definition:
+      default: ""

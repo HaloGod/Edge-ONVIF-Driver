@@ -27,6 +27,9 @@ else
     log = { info = print, warn = print, error = print, debug = print }
 end
 
+-- Version identifier to confirm deployment
+log.info("SHA-1 init.lua version: Future-Proof 2025-04-08 v1.1")
+
 -- Load dependencies with error checking
 local common, common_err
 common, common_err = pcall(function() return require "sha1.common" end)
@@ -130,9 +133,11 @@ if config.precompute_tables then
     if success then
         sha1_module.xor_with_0x5c = xor_5c
         sha1_module.xor_with_0x36 = xor_36
-        log.debug("Precomputed XOR tables for HMAC")
+        if config.debug_mode then
+            log.debug("Precomputed XOR tables for HMAC")
+        end
     else
-        log.warn("Failed to precompute XOR tables: " .. tostring(xor_36)) -- Error in xor_36
+        log.warn("Failed to precompute XOR tables: " .. tostring(xor_36))
         sha1_module.xor_with_0x5c = nil
         sha1_module.xor_with_0x36 = nil
     end
@@ -206,13 +211,3 @@ local function self_test()
     end
     return all_passed
 end
-
--- Run self-test on load
-self_test()
-
--- Export the module with metadata
-sha1_module.config = config
-sha1_module.lua_version = lua_version
-sha1_module.implementation = impl_desc
-
-return sha1_module

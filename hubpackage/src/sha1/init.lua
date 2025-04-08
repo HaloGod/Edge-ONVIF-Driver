@@ -1,213 +1,131 @@
---[[
-  Enhanced init.lua for SHA-1 library
-  Copyright 2025, suggestions for dMac, based on SHA-1 library by Peter Melnichenko
+-- sha1/sha1.lua
+local sha1 = {}
 
-  Licensed under the MIT License (see sha1.lua for details)
-  
-  DESCRIPTION
-  Initializes the SHA-1 library with error handling, version detection, and configuration options.
-  Prepares the library for use in environments like SmartThings Edge with ONVIF drivers.
-  Includes self-tests and utility functions for robust integration.
+-- Local variables for operations (to be set via set_operations)
+local byte_xor
+local uint32_lrot
+local uint32_xor_3
+local uint32_xor_4
+local uint32_ternary
+local uint32_majority
 
-  CONFIGURATION
-  To customize the library, set the global table `_G.SHA1_CONFIG` before loading this module.
-  Example:
-    _G.SHA1_CONFIG = { debug_mode = true, force_pure_lua = false }
-  Available options:
-    - force_pure_lua (boolean): Use pure Lua implementation even if native ops are available (default: false)
-    - precompute_tables (boolean): Precompute XOR tables for HMAC performance (default: true)
-    - debug_mode (boolean): Enable debug logging (default: false)
---]]
-
--- Attempt to load a logging module (e.g., from SmartThings Edge), fallback to print
-local log
-if pcall(function() log = require "log" end) then
-    -- SmartThings Edge logging available
-else
-    log = { info = print, warn = print, error = print, debug = print }
+-- Function to set the operations from sha1/lua53_ops.lua
+function sha1.set_operations(ops)
+    byte_xor = ops.byte_xor
+    uint32_lrot = ops.uint32_lrot
+    uint32_xor_3 = ops.uint32_xor_3
+    uint32_xor_4 = ops.uint32_xor_4
+    uint32_ternary = ops.uint32_ternary
+    uint32_majority = ops.uint32_majority
 end
 
--- Version identifier to confirm deployment
-log.info("SHA-1 init.lua version: Future-Proof 2025-04-08 v1.1")
-
--- Load dependencies with error checking
-local common, common_err
-common, common_err = pcall(function() return require "sha1.common" end)
-if not common then
-    log.error("Failed to load sha1.common: " .. (common_err or "unknown error"))
-    error("SHA-1 initialization failed: missing sha1.common")
-end
-common = common_err  -- pcall returns status as first arg, result as second
-
-local ops, ops_err
-ops, ops_err = pcall(function() return require "sha1.lua53_ops" end)
-if not ops then
-    log.warn("Failed to load sha1.lua53_ops: " .. (ops_err or "unknown error") .. "; falling back to pure Lua")
-    ops = nil
-end
-ops = ops_err  -- Adjust for pcall return
-
-local sha1_module, sha1_err
-sha1_module, sha1_err = pcall(function() return require "sha1.sha1" end)
-if not sha1_module then
-    log.error("Failed to load sha1.sha1: " .. (sha1_err or "unknown error"))
-    error("SHA-1 initialization failed: missing sha1.sha1")
-end
-sha1_module = sha1_err  -- Adjust for pcall return
-
--- Detect Lua version
-local lua_version = _VERSION:match("Lua%s+(%d+%.%d+)") or "unknown"
-log.info("Initializing SHA-1 library on " .. _VERSION)
-
--- Default configuration options (can be overridden via _G.SHA1_CONFIG)
-local default_config = {
-    force_pure_lua = false,  -- Use native operations if available
-    precompute_tables = true,  -- Precompute tables for performance
-    debug_mode = false  -- No debug logging by default
+-- SHA-1 Constants
+local K = {
+    0x5A827999, 0x6ED9EBA1, 0x8F1BBCDC, 0xCA62C1D6
 }
 
--- Check for global configuration override (_G.SHA1_CONFIG)
-local config = _G.SHA1_CONFIG or {}
-for k, v in pairs(default_config) do
-    if config[k] == nil then
-        config[k] = v  -- Use default if not overridden
+-- Helper function to convert a string to a byte array
+local function string_to_bytes(str)
+    local bytes = {}
+    for i = 1, #str do
+        bytes[i] = string.byte(str, i)
     end
+    return bytes
 end
 
--- Check for bit operations availability
-local has_bit32, bit32 = pcall(function() return require "bit32" end)
-local has_bit = pcall(function() return require "bit" end)
-local has_lua53 = (lua_version >= "5.3")
-
--- Determine implementation
-local impl_desc
-if has_lua53 and not config.force_pure_lua then
-    impl_desc = "Lua 5.3+ operators"
-elseif has_bit32 and not config.force_pure_lua then
-    impl_desc = "bit32 module"
-elseif has_bit and not config.force_pure_lua then
-    impl_desc = "bit module"
-else
-    impl_desc = "pure Lua"
-    if not ops then
-        log.warn("No bitwise ops module loaded; pure Lua may be slower and less reliable without custom fallback")
-    end
+-- Helper function to convert a number to a hexadecimal string
+local function to_hex(num)
+    return string.format("%08x", num)
 end
-log.info("Using " .. impl_desc .. " for SHA-1 operations")
 
--- Precompute XOR tables if configured
-if config.precompute_tables then
-    local function precompute_xor_tables()
-        local xor_with_0x5c = {}
-        local xor_with_0x36 = {}
-        -- Use ops.byte_xor if available, fallback to bit32, bit, or pure Lua
-        local byte_xor
-        if ops and ops.byte_xor then
-            byte_xor = ops.byte_xor
-        elseif has_bit32 then
-            byte_xor = function(a, b) return bit32.bxor(a, b) end
-        elseif has_bit then
-            byte_xor = function(a, b) return require("bit").bxor(a, b) end
-        else
-            byte_xor = function(a, b)  -- Pure Lua XOR
-                local result = 0
-                for i = 0, 7 do
-                    local bit_a = math.floor(a / 2^i) % 2
-                    local bit_b = math.floor(b / 2^i) % 2
-                    result = result + ((bit_a ~= bit_b) and 2^i or 0)
-                end
-                return result
+-- Main SHA-1 function
+function sha1.sha1(message)
+    if not byte_xor then
+        error("Operations not set; call set_operations first")
+    end
+
+    -- Convert message to byte array
+    local bytes = string_to_bytes(message)
+
+    -- Pre-processing: append the bit '1' to the message
+    local msg_len = #bytes * 8
+    bytes[#bytes + 1] = 0x80
+
+    -- Append padding bytes (zeros) until length is congruent to 56 (mod 64)
+    while (#bytes % 64) ~= 56 do
+        bytes[#bytes + 1] = 0x00
+    end
+
+    -- Append original message length as a 64-bit big-endian integer
+    for i = 7, 0, -1 do
+        bytes[#bytes + 1] = bit32.rshift(msg_len, i * 8) % 256
+    end
+
+    -- Initialize hash values
+    local h0 = 0x67452301
+    local h1 = 0xEFCDAB89
+    local h2 = 0x98BADCFE
+    local h3 = 0x10325476
+    local h4 = 0xC3D2E1F0
+
+    -- Process message in 512-bit (64-byte) chunks
+    for chunk_start = 1, #bytes, 64 do
+        local w = {}
+        -- Break chunk into sixteen 32-bit big-endian words
+        for i = 0, 15 do
+            w[i] = bytes[chunk_start + i * 4] * 2^24 +
+                   bytes[chunk_start + i * 4 + 1] * 2^16 +
+                   bytes[chunk_start + i * 4 + 2] * 2^8 +
+                   bytes[chunk_start + i * 4 + 3]
+        end
+
+        -- Extend the sixteen 32-bit words into eighty 32-bit words
+        for i = 16, 79 do
+            w[i] = uint32_lrot(uint32_xor_4(w[i-3], w[i-8], w[i-14], w[i-16]), 1)
+        end
+
+        -- Initialize working variables
+        local a = h0
+        local b = h1
+        local c = h2
+        local d = h3
+        local e = h4
+
+        -- Main loop
+        for i = 0, 79 do
+            local f, k
+            if i <= 19 then
+                f = uint32_ternary(b, c, d)
+                k = K[1]
+            elseif i <= 39 then
+                f = uint32_xor_3(b, c, d)
+                k = K[2]
+            elseif i <= 59 then
+                f = uint32_majority(b, c, d)
+                k = K[3]
+            else
+                f = uint32_xor_3(b, c, d)
+                k = K[4]
             end
+
+            local temp = (uint32_lrot(a, 5) + f + e + k + w[i]) % 2^32
+            e = d
+            d = c
+            c = uint32_lrot(b, 30)
+            b = a
+            a = temp
         end
 
-        for i = 0, 0xff do
-            local char = string.char(i)
-            xor_with_0x5c[char] = string.char(byte_xor(0x5c, i))
-            xor_with_0x36[char] = string.char(byte_xor(0x36, i))
-        end
-        
-        return xor_with_0x5c, xor_with_0x36
-    end
-    
-    local success, xor_5c, xor_36 = pcall(precompute_xor_tables)
-    if success then
-        sha1_module.xor_with_0x5c = xor_5c
-        sha1_module.xor_with_0x36 = xor_36
-        if config.debug_mode then
-            log.debug("Precomputed XOR tables for HMAC")
-        end
-    else
-        log.warn("Failed to precompute XOR tables: " .. tostring(xor_36))
-        sha1_module.xor_with_0x5c = nil
-        sha1_module.xor_with_0x36 = nil
-    end
-end
-
--- Utility functions for ONVIF driver integration
-function sha1_module.hmac_hex(key, text)
-    return sha1_module.hmac(key, text)  -- Returns hex string directly
-end
-
-function sha1_module.digest_auth(username, realm, password, nonce, method, uri)
-    -- Common ONVIF HTTP Digest Auth calculation
-    local ha1 = sha1_module.sha1(username .. ":" .. realm .. ":" .. password)
-    local ha2 = sha1_module.sha1(method .. ":" .. uri)
-    local response = sha1_module.sha1(ha1 .. ":" .. nonce .. ":" .. ha2)
-    return response
-end
-
--- Enhanced self-test with multiple cases
-local function self_test()
-    local tests = {
-        {
-            input = "test",
-            expected_sha1 = "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
-            desc = "Basic SHA-1 test"
-        },
-        {
-            input = "",
-            expected_sha1 = "da39a3ee5e6b4b0d3255bfef95601890afd80709",
-            desc = "Empty string SHA-1"
-        },
-        {
-            input = "The quick brown fox jumps over the lazy dog",
-            expected_sha1 = "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12",
-            desc = "Standard phrase SHA-1"
-        },
-        {
-            input = "abc",
-            hmac_key = "key",
-            expected_hmac = "de7c9b85b8b78aa6bc8a7a36f70a90701c9db4d9",
-            desc = "HMAC-SHA1 test"
-        }
-    }
-
-    local all_passed = true
-    for _, test in ipairs(tests) do
-        if test.expected_sha1 then
-            local result = sha1_module.sha1(test.input)
-            if result ~= test.expected_sha1 then
-                log.error(string.format("Self-test failed [%s]: expected %s, got %s", test.desc, test.expected_sha1, result))
-                all_passed = false
-            elseif config.debug_mode then
-                log.debug(string.format("Self-test passed [%s]: %s", test.desc, result))
-            end
-        end
-        if test.expected_hmac then
-            local result = sha1_module.hmac(test.hmac_key, test.input)
-            if result ~= test.expected_hmac then
-                log.error(string.format("Self-test failed [%s]: expected %s, got %s", test.desc, test.expected_hmac, result))
-                all_passed = false
-            elseif config.debug_mode then
-                log.debug(string.format("Self-test passed [%s]: %s", test.desc, result))
-            end
-        end
+        -- Update hash values
+        h0 = (h0 + a) % 2^32
+        h1 = (h1 + b) % 2^32
+        h2 = (h2 + c) % 2^32
+        h3 = (h3 + d) % 2^32
+        h4 = (h4 + e) % 2^32
     end
 
-    if all_passed then
-        log.info("SHA-1 self-test passed")
-    else
-        log.error("SHA-1 self-test failed; check implementation or dependencies")
-    end
-    return all_passed
+    -- Produce the final hash as a hexadecimal string
+    return to_hex(h0) .. to_hex(h1) .. to_hex(h2) .. to_hex(h3) .. to_hex(h4)
 end
+
+return sha1

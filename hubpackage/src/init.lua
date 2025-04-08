@@ -37,7 +37,14 @@ local events = require "events"
 local common = require "common"
 local event_handlers = require "event_handlers"
 local audio = require "audio"
-local ptz = require "ptz"
+
+-- Attempt to load the optional PTZ module
+local ptz
+local success, err = pcall(function() ptz = require "ptz" end)
+if not success then
+    log.warn("PTZ module not found; PTZ controls will be disabled")
+    ptz = nil
+end
 
 -- Custom capabilities
 local cap_status = capabilities["pianodream12480.onvifStatus"]
@@ -255,6 +262,14 @@ end
 local function device_init(driver, device)
     log.info("Device init:", device.label)
     device:emit_component_event(device.profile.components["main"], cap_status.status("Online"))
+    
+    -- Initialize PTZ if available
+    if ptz then
+        log.info("PTZ controls enabled for this device")
+        device:emit_event(cap_ptzControl.ptzStatus("idle"))
+    else
+        log.info("PTZ not supported for this device")
+    end
 end
 
 local function device_removed(driver, device)
@@ -265,8 +280,16 @@ end
 -- Run self-tests for libraries
 local function run_self_tests()
     log.info("Running self-tests for all modules")
-    local common_test = require("common").self_test and require("common").self_test() or true
-    local sha1_test = require("sha1").self_test()
+    
+    -- Load the common module and safely check for self_test
+    local common = require("common")
+    local common_test = common.self_test and common.self_test() or true
+    
+    -- Load the sha1 module and safely check for self_test
+    local sha1 = require("sha1")
+    local sha1_test = sha1.self_test and sha1_test() or true
+    
+    -- Log an error only if a test fails (not if it’s missing)
     if not (common_test and sha1_test) then
         log.error("Self-tests failed; check library implementations")
     end

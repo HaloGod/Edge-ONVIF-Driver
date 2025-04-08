@@ -8,12 +8,16 @@ components:
   - id: main
     label: Main
     capabilities:
+      - id: switch
+      - id: refresh
       - id: pianodream12480.onvifStatus
         version: 1
       - id: pianodream12480.onvifInfo
         version: 1
       - id: pianodream12480.refresh
         version: 1
+    categories:
+      - name: Camera
   - id: motionComponent
     label: Motion Events
     capabilities:

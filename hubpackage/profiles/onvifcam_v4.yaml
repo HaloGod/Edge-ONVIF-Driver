@@ -1,7 +1,7 @@
 name: ONVIF-Doorbell
 metadata:
   deviceType: Camera
-  ocfDeviceType: x.com.st.d.camera
+  ocfDeviceType: oic.d.camera  # Changed to standard OCF camera type
   vid: onvifcam_v5
   mnmn: SmartThings
 components:
@@ -16,8 +16,13 @@ components:
         version: 1
       - id: pianodream12480.refresh
         version: 1
+      - id: videoStream
+        version: 1
+      - id: videoCapture  # Added for full camera recognition
+        version: 1
     categories:
       - name: Camera
+        version: 1
   - id: motionComponent
     label: Motion Events
     capabilities:
@@ -45,11 +50,6 @@ components:
         version: 1
       - id: pianodream12480.audioOutput
         version: 1
-  - id: videoComponent
-    label: Video Stream
-    capabilities:
-      - id: videoStream
-        version: 1
   - id: trackMixComponent
     label: TrackMix Controls
     capabilities:
@@ -67,7 +67,7 @@ preferences:
     required: true
     preferenceType: string
     definition:
-      stringType: text  # Added to satisfy API validation
+      stringType: text
       minLength: 7
       maxLength: 15
       default: "192.168.1.100"
@@ -86,7 +86,7 @@ preferences:
     required: true
     preferenceType: string
     definition:
-      stringType: text  # Added to satisfy API validation
+      stringType: text
       minLength: 1
       maxLength: 50
       default: "admin"
@@ -96,7 +96,7 @@ preferences:
     required: true
     preferenceType: string
     definition:
-      stringType: password  # Added for sensitive field
+      stringType: password
       minLength: 1
       maxLength: 50
       default: "password"
@@ -123,7 +123,7 @@ preferences:
     required: false
     preferenceType: string
     definition:
-      stringType: text  # Added to satisfy API validation
+      stringType: text
       minLength: 1
       maxLength: 100
       default: "/default/audio.wav"
@@ -133,7 +133,7 @@ preferences:
     required: false
     preferenceType: string
     definition:
-      stringType: text  # Added to satisfy API validation
+      stringType: text
       minLength: 1
       maxLength: 50
       default: "Please wait."
@@ -143,7 +143,7 @@ preferences:
     required: false
     preferenceType: string
     definition:
-      stringType: text  # Added to satisfy API validation
+      stringType: text
       minLength: 0
       maxLength: 15
       default: ""

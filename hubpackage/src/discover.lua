@@ -12,6 +12,7 @@
   - RTSP fallback for 10.0.0.72: rtsp://admin:Doggies44@10.0.0.72/h264Preview_01_main (port 554).
   - Multicast detected 10.0.0.58, 10.0.0.67, 10.0.0.72 successfully.
   - Added default credentials (admin:Doggies44) to all discovered devices.
+  - Updated device_network_id to use IP only (e.g., "10.0.0.72") to fix incorrect lan.networkId format (previously ":10.0.0.72").
 --]]
 
 local cosock = require "cosock"
@@ -65,9 +66,40 @@ local function parse(data)
         return nil
     end
 
-    -- ... (XML parsing logic unchanged) ...
+    -- Extract SOAP envelope and body
+    local envelope = parsed_xml['SOAP-ENV:Envelope'] or parsed_xml['s:Envelope']
+    if not envelope then
+        log.error("No SOAP Envelope found in response")
+        return nil
+    end
 
-    local xaddrs = probe_match['XAddrs'] or probe_match['d:XAddrs']
+    local body = envelope['SOAP-ENV:Body'] or envelope['s:Body']
+    if not body then
+        log.error("No SOAP Body found in response")
+        return nil
+    end
+
+    -- Extract ProbeMatches
+    local probe_matches = body['wsdd:ProbeMatches'] or body['d:ProbeMatches']
+    if not probe_matches then
+        log.error("No ProbeMatches found in response")
+        return nil
+    end
+
+    local probe_match = probe_matches['wsdd:ProbeMatch'] or probe_matches['d:ProbeMatch']
+    if not probe_match then
+        log.error("No ProbeMatch found in response")
+        return nil
+    end
+
+    -- Extract Types
+    local types = probe_match['wsdd:Types'] or probe_match['d:Types']
+    if not types then
+        log.warn("No Types found in ProbeMatch")
+    end
+
+    -- Extract XAddrs (service URI)
+    local xaddrs = probe_match['wsdd:XAddrs'] or probe_match['d:XAddrs']
     if xaddrs then
         for addr in xaddrs:gmatch('[^ ]+') do
             local ip, port = addr:match('^(http://)([%d%.]+):?(%d*)/')
@@ -87,10 +119,49 @@ local function parse(data)
         return nil
     end
 
-    -- ... (scopes and endpoint parsing unchanged) ...
+    -- Extract Scopes
+    local scopes = probe_match['wsdd:Scopes'] or probe_match['d:Scopes']
+    if not scopes then
+        log.warn("No Scopes found in ProbeMatch")
+        return nil
+    end
+
+    metadata.vendname = ''
+    metadata.hardware = ''
+    metadata.location = ''
+    for scope in scopes:gmatch('[^ ]+') do
+        if scope:match('onvif://www.onvif.org/name/') then
+            metadata.vendname = scope:match('onvif://www.onvif.org/name/(.+)$') or ''
+        elseif scope:match('onvif://www.onvif.org/hardware/') then
+            metadata.hardware = scope:match('onvif://www.onvif.org/hardware/(.+)$') or ''
+        elseif scope:match('onvif://www.onvif.org/location/') then
+            metadata.location = scope:match('onvif://www.onvif.org/location/(.+)$') or ''
+        end
+    end
+
+    -- Extract EndpointReference Address (URN)
+    local endpoint_ref = probe_match['wsa:EndpointReference'] or probe_match['a:EndpointReference']
+    if not endpoint_ref then
+        log.error("No EndpointReference found in ProbeMatch")
+        return nil
+    end
+
+    local urn = endpoint_ref['wsa:Address'] or endpoint_ref['a:Address']
+    if not urn then
+        log.error("No Address found in EndpointReference")
+        return nil
+    end
+
+    if discovered_urns[urn] then
+        log.debug("Ignoring duplicate URN: " .. urn)
+        return nil
+    end
+    discovered_urns[urn] = true
+    metadata.urn = urn
 
     -- SmartThings-specific fields with default credentials
-    metadata.device_network_id = metadata.ip .. ":" .. metadata.port
+    -- Use IP only for device_network_id to fix incorrect lan.networkId format
+    metadata.device_network_id = metadata.ip  -- Changed from metadata.ip .. ":" .. metadata.port
     metadata.label = metadata.hardware ~= '' and metadata.hardware or "ONVIF Camera " .. metadata.ip
     metadata.manufacturer = metadata.vendname ~= '' and metadata.vendname or "Reolink"
     metadata.username = DEFAULT_USERNAME
@@ -139,7 +210,7 @@ local function direct_probe(ip, port, callback)
             port = "554",
             addr = ip .. ":554",
             rtsp_url = "rtsp://" .. DEFAULT_USERNAME .. ":" .. DEFAULT_PASSWORD .. "@" .. ip .. "/h264Preview_01_main",
-            device_network_id = ip .. ":554",
+            device_network_id = ip,  -- Changed from ip .. ":554"
             label = "Reolink Device (RTSP) " .. ip,
             manufacturer = "Reolink",
             username = DEFAULT_USERNAME,

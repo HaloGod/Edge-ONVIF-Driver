@@ -1,9 +1,9 @@
-name: ONVIF-Doorbell
+name: ONVIFDoorbell  # Match the name in SmartThings
 metadata:
-  deviceType: Camera
-  ocfDeviceType: oic.d.camera  # Changed to standard OCF camera type
-  vid: onvifcam_v5
-  mnmn: SmartThings
+  deviceType: DoorBell
+  ocfDeviceType: x.com.st.d.doorbell
+  vid: 317ff4cb-7550-34a5-a9fd-45772c852f0a  # Updated to the new vid
+  mnmn: SmartThingsCommunity  # Updated to match the presentation output
 components:
   - id: main
     label: Main
@@ -18,14 +18,17 @@ components:
         version: 1
       - id: videoStream
         version: 1
-      - id: videoCapture  # Added for full camera recognition
+      - id: videoCapture
         version: 1
+      - id: audioVolume  # Added to match SmartThings profile
+      - id: notification  # Added to match SmartThings profile
     categories:
-      - name: Camera
+      - name: DoorBell  # Updated to match deviceType
         version: 1
   - id: motionComponent
     label: Motion Events
     capabilities:
+      - id: motionSensor  # Added standard capability to match SmartThings profile
       - id: pianodream12480.motionevents2
         version: 1
   - id: lineComponent
@@ -41,6 +44,7 @@ components:
   - id: doorbellComponent
     label: Doorbell
     capabilities:
+      - id: button  # Added standard capability to match SmartThings profile
       - id: pianodream12480.doorbell
         version: 1
   - id: audioComponent
@@ -50,6 +54,7 @@ components:
         version: 1
       - id: pianodream12480.audioOutput
         version: 1
+      - id: audioNotification  # Added to match SmartThings profile
   - id: trackMixComponent
     label: TrackMix Controls
     capabilities:
@@ -58,6 +63,7 @@ components:
   - id: chimeComponent
     label: Chime
     capabilities:
+      - id: chime  # Added to match SmartThings profile
       - id: pianodream12480.customChimeControl
         version: 1
 preferences:
@@ -92,7 +98,7 @@ preferences:
       default: "admin"
   - name: password
     title: Camera Password
-    description: Enter the password for camera authentication
+    description: Enter the password for camera authentication (avoid special characters like @, &, etc.)
     required: true
     preferenceType: string
     definition:
@@ -147,3 +153,23 @@ preferences:
       minLength: 0
       maxLength: 15
       default: ""
+  # New preferences for RTSP configuration
+  - name: rtspPath
+    title: RTSP Stream Path
+    description: Enter the RTSP stream path (e.g., h264Preview_01_main)
+    required: true
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 1
+      maxLength: 50
+      default: "h264Preview_01_main"
+  - name: rtspPort
+    title: RTSP Port
+    description: Enter the RTSP port number of the camera
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 1
+      maximum: 65535
+      default: 554

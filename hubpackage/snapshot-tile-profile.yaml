@@ -1,0 +1,52 @@
+name: snapshot-tile-profile
+components:
+  - id: main
+    capabilities:
+      - id: videoStream
+        version: 1
+      - id: pianodream12480.onvifStatus
+        version: 1
+      - id: refresh
+        version: 1
+      - id: switch
+        version: 1
+      - id: pianodream12480.onvifInfo
+        version: 1
+      - id: videoCapture
+        version: 1
+  - id: motionComponent
+    capabilities:
+      - id: pianodream12480.motionevents2
+        version: 1
+  - id: lineComponent
+    capabilities:
+      - id: pianodream12480.linecross
+        version: 1
+  - id: tamperComponent
+    capabilities:
+      - id: tamperAlert
+        version: 1
+  - id: doorbellComponent
+    capabilities:
+      - id: pianodream12480.doorbell
+        version: 1
+  - id: audioComponent
+    capabilities:
+      - id: pianodream12480.twoWayAudio
+        version: 1
+      - id: pianodream12480.audioOutput
+        version: 1
+  - id: trackMixComponent
+    capabilities:
+      - id: pianodream12480.customPtzControl
+        version: 1
+  - id: chimeComponent
+    capabilities:
+      - id: pianodream12480.customChimeControl
+        version: 1
+metadata:
+  vid: c107701b-bb13-3284-9618-ffb95c028d7b
+  deviceType: Camera
+  ocfDeviceType: oic.d.camera
+  deviceTypeId: Camera
+  mnmn: SmartThingsCommunity

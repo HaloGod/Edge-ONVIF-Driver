@@ -1,0 +1,88 @@
+dashboard:
+  states:
+    - label: '{{videoStream.streamingStatus.value}}'
+      alternatives:
+        - key: active
+          value: Streaming
+          type: active
+        - key: inactive
+          value: Offline
+          type: inactive
+  actions: []
+  basicPlus: []
+detailView:
+  - capability: videoStream
+    label: Camera Stream
+    displayType: videoStream
+    videoStream:
+      stream: stream.uri
+      snapshot: snapshot.uri
+  - capability: pianodream12480.doorbell
+    label: Doorbell
+    displayType: state
+    state:
+      label: '{{button.value}}'
+      alternatives:
+        - key: pressed
+          value: Doorbell Pressed
+          type: active
+        - key: released
+          value: Doorbell Idle
+          type: inactive
+  - capability: pianodream12480.onvifStatus
+    label: ONVIF Status
+    displayType: state
+    state:
+      label: '{{status.value}}'
+      alternatives:
+        - key: connected
+          value: Connected
+          type: active
+        - key: error
+          value: Error
+          type: inactive
+  - capability: refresh
+    label: Refresh
+    displayType: pushButton
+    pushButton:
+      command: refresh
+automation:
+  conditions:
+    - capability: videoStream
+      label: Streaming Status
+      displayType: list
+      list:
+        alternatives:
+          - key: active
+            value: Streaming
+            type: active
+          - key: inactive
+            value: Offline
+            type: inactive
+    - capability: pianodream12480.doorbell
+      label: Doorbell
+      displayType: list
+      list:
+        alternatives:
+          - key: pressed
+            value: Doorbell Pressed
+            type: active
+          - key: released
+            value: Doorbell Idle
+            type: inactive
+  actions:
+    - capability: videoStream
+      label: Start Stream
+      displayType: pushButton
+      pushButton:
+        command: startStream
+    - capability: videoStream
+      label: Stop Stream
+      displayType: pushButton
+      pushButton:
+        command: stopStream
+    - capability: refresh
+      label: Refresh
+      displayType: pushButton
+      pushButton:
+        command: refresh

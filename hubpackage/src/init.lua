@@ -1,11 +1,11 @@
 --[[
   Copyright 2022 Todd Austin, enhanced 2025 by HaloGod and suggestions for dMac
-
   Licensed under the Apache License, Version 2.0 (the "License");
   http://www.apache.org/licenses/LICENSE-2.0
 --]]
 
 -- Edge libraries
+-- package.path = "./?.lua;" .. package.path
 local capabilities = require "st.capabilities"
 local socket = require "cosock.socket"
 local log = require "log"
@@ -17,7 +17,12 @@ local ltn12 = require "ltn12"
 local common = require "common"
 local commands = require "commands"
 local discover = require "discover"
-local onvif_events = require "onvif_events"
+local event_handlers = require "event_handlers"
+local success, onvif_events = pcall(require, "onvif_events")
+if not success then
+    log.error("Failed to load onvif_events: " .. tostring(onvif_events))
+    onvif_events = { subscribe = function() log.warn("onvif_events.subscribe not available") end }
+end
 
 -- Capabilities
 local cap_motionSensor = capabilities.motionSensor
@@ -33,306 +38,111 @@ local cap_videoCapture = capabilities.videoCapture
 local LINECROSSREVERTDELAY = 1
 local DEFAULT_AUDIO_TIMEOUT = 10
 local MAX_RETRIES = 3
-local RETRY_DELAY = 5  -- seconds
-local SNAPSHOT_INTERVAL = 60  -- Refresh snapshot every 60 seconds
-local HA_LOCAL_URL = "http://10.0.0.122:8123"  -- RPi's local IP
-local HA_LOCAL_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmYzZiMTA4ZTZhZjQ0MmM0ODJmNWVmYTg3MzY0N2JkYyIsImlhdCI6MTc0NDMzMTQwNiwiZXhwIjoyMDU5NjkxNDA2fQ.wWC3wnFUL9sBfTTe2x2eNAWq1VdLnH_eEdGJ3VY9YuI"  -- Long-lived token
-
--- Event Handler Functions (unchanged)
-local function handle_motion_event(device, cam_func, msg)
-    local name, value
-    if common.is_element(msg, {'Message', 'Message', 'Data', 'SimpleItem', '_attr', 'Name'}) then
-        name = msg.Message.Message.Data.SimpleItem._attr.Name
-        value = msg.Message.Message.Data.SimpleItem._attr.Value
-        if name == cam_func.motion_eventrule.item then
-            log.info(string.format('Message for %s: %s', device.label, msg.Topic[1]))
-            log.info(string.format('\tMotion value = "%s"', value))
-            if (value == 'true') or (value == '1') then
-                if (socket.gettime() - device:get_field('LastMotion')) >= device:get_field('effective_prefs').minmotioninterval then
-                    device:emit_event(cap_motionSensor.motion('active'))
-                    device:set_field('LastMotion', socket.gettime())
-                    if device:get_field('effective_prefs').autorevert == 'yesauto' then
-                        device.thread:call_with_delay(device:get_field('effective_prefs').revertdelay, function()
-                            device:emit_event(cap_motionSensor.motion('inactive'))
-                        end, 'revert motion')
-                    end
-                else
-                    log.info('Motion event ignored due to configured min interval')
-                end
-            else
-                device:emit_event(cap_motionSensor.motion('inactive'))
-            end
-        else
-            log.error('Item name mismatch with event message:', name)
-        end
-    else
-        log.error('Missing event item name/value')
-    end
-end
-
-local function handle_linecross_event(device, cam_func, msg)
-    if not device:supports_capability_by_id("pianodream12480.linecross") then return end
-    local name, value
-    if common.is_element(msg, {'Message', 'Message', 'Data', 'SimpleItem', '_attr', 'Name'}) then
-        name = msg.Message.Message.Data.SimpleItem._attr.Name
-        value = msg.Message.Message.Data.SimpleItem._attr.Value
-        if name == cam_func.linecross_eventrule.item then
-            log.info(string.format('Linecross notification for %s: %s', device.label, msg.Topic[1]))
-            log.info(string.format('\tValue = "%s"', value, type(value)))
-            if type(value) == 'string' then value = string.lower(value) end
-            if (value != 'false') and (value != '0') then
-                if (socket.gettime() - device:get_field('LastLinecross')) >= device:get_field('effective_prefs').minlinecrossinterval then
-                    device:emit_component_event(device.profile.components.lineComponent, cap_linecross.linecross('active'))
-                    device:set_field('LastLinecross', socket.gettime())
-                    device.thread:call_with_delay(LINECROSSREVERTDELAY, function()
-                        device:emit_component_event(device.profile.components.lineComponent, cap_linecross.linecross('inactive'))
-                    end, 'revert linecross')
-                else
-                    log.info('Linecross event ignored due to configured min interval')
-                end
-            else
-                device:emit_component_event(device.profile.components.lineComponent, cap_linecross.linecross('inactive'))
-            end
-        else
-            log.error('Item name mismatch with event message:', name)
-        end
-    else
-        log.error('Missing linecross event item name/value')
-    end
-end
-
-local function handle_tamper_event(device, cam_func, msg)
-    if not device:supports_capability_by_id('tamperAlert') then return end
-    local name, value
-    if common.is_element(msg, {'Message', 'Message', 'Data', 'SimpleItem', '_attr', 'Name'}) then
-        name = msg.Message.Message.Data.SimpleItem._attr.Name
-        value = msg.Message.Message.Data.SimpleItem._attr.Value
-        if name == cam_func.tamper_eventrule.item then
-            log.info(string.format('Tamper notification for %s: %s', device.label, msg.Topic[1]))
-            log.info(string.format('\tValue = "%s"', value))
-            if (value == 'true') or (value == '1') then
-                if (socket.gettime() - device:get_field('LastTamper')) >= device:get_field('effective_prefs').mintamperinterval then
-                    device:emit_component_event(device.profile.components.tamperComponent, cap_tamperAlert.tamper('detected'))
-                    device:set_field('LastTamper', socket.gettime())
-                    if device:get_field('effective_prefs').autorevert == 'yesauto' then
-                        device.thread:call_with_delay(device:get_field('effective_prefs').revertdelay, function()
-                            device:emit_component_event(device.profile.components.tamperComponent, cap_tamperAlert.tamper('clear'))
-                        end, 'revert tamper')
-                    end
-                else
-                    log.info('Tamper event ignored due to configured min interval')
-                end
-            else
-                device:emit_component_event(device.profile.components.tamperComponent, cap_tamperAlert.tamper('clear'))
-            end
-        else
-            log.error('Item name mismatch with event message:', name)
-        end
-    else
-        log.error('Missing tamper event item name/value')
-    end
-end
-
-local function handle_stream(device, cam_func)
-    if cam_func.stream_uri then
-        local stream_url = cam_func.stream_uri
-        if device:get_field('effective_prefs').enableBackupStream and cam_func.backup_stream_uri then
-            log.warn("Backup stream requested but availability check skipped (no io library)")
-            stream_url = cam_func.backup_stream_uri
-            log.info('Switched to backup stream:', stream_url)
-        end
-        device:emit_event(cap_videoStream.stream({ uri = stream_url }))
-        device:emit_event(cap_videoStream.streamingStatus("active"))
-    else
-        log.error('No stream URI available for', device.label)
-        device:emit_event(cap_videoStream.streamingStatus("inactive"))
-        device:emit_event(onvif_status.status("error"))
-    end
-end
-
-local function handle_visitor_event(device, cam_func, msg, timeout)
-    timeout = timeout or DEFAULT_AUDIO_TIMEOUT
-    if not device:supports_capability_by_id('pianodream12480.doorbell') then return end
-    local name, value
-    if common.is_element(msg, {'Message', 'Message', 'Data', 'SimpleItem', '_attr', 'Name'}) then
-        name = msg.Message.Message.Data.SimpleItem._attr.Name
-        value = msg.Message.Message.Data.SimpleItem._attr.Value
-        if name == cam_func.visitor_eventrule.item then
-            log.info(string.format('Visitor notification for %s: %s', device.label, msg.Topic[1]))
-            log.info(string.format('\tVisitor value = "%s"', value))
-            if (value == 'true') or (value == '1') then
-                if (socket.gettime() - (device:get_field('LastVisitor') or 0)) >= (device:get_field('effective_prefs').minvisitorinterval or 5) then
-                    device:emit_component_event(device.profile.components.doorbellComponent, cap_doorbell.button('pressed'))
-                    device:set_field('LastVisitor', socket.gettime())
-                    handle_stream(device, cam_func)
-                    if device:get_field('effective_prefs').enableTwoWayAudio and cam_func.audio_output_token then
-                        log.debug('Sending audio for', device.label)
-                        local success = commands.SendAudioOutput(device, cam_func.audio_output_token, "Visitor detected", timeout)
-                        if not success then
-                            log.warn('ONVIF audio output failed, attempting fallback')
-                            local fallback_success = send_audio_output_ffmpeg(device, cam_func.audio_output_token, device:get_field('effective_prefs').audioFilePath)
-                            if not fallback_success then
-                                log.error('Both ONVIF and fallback audio output failed for', device.label)
-                            end
-                        end
-                    end
-                    device.thread:call_with_delay(1, function()
-                        device:emit_component_event(device.profile.components.doorbellComponent, cap_doorbell.button('released'))
-                    end, 'doorbell release')
-                else
-                    log.info('Visitor event ignored due to min interval')
-                end
-            end
-        else
-            log.error('Item name mismatch with Visitor event:', name)
-        end
-    else
-        log.error('Missing Visitor event item name/value')
-    end
-end
-
-local function send_audio_output_ffmpeg(device, output_token, audio_file)
-    local cam_func = device:get_field('onvif_func')
-    if not cam_func or not cam_func.stream_uri then
-        log.error('Cannot find stream URI for audio output')
-        return false
-    end
-    log.info('Attempting fallback audio output via ONVIF for device: ' .. device.label)
-    local success = commands.SendAudioOutput(device, output_token, "Fallback audio message", DEFAULT_AUDIO_TIMEOUT)
-    if success then
-        log.info('Fallback audio output via ONVIF succeeded for device: ' .. device.label)
-        return true
-    else
-        log.error('Fallback audio output via ONVIF failed for device: ' .. device.label)
-        return false
-    end
-end
+local RETRY_DELAY = 5
+local SNAPSHOT_INTERVAL = 120
+local HA_LOCAL_URL = "http://10.0.0.122:8123"
+local HA_LOCAL_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmYzZiMTA4ZTZhZjQ0MmM0ODJmNWVmYTg3MzY0N2JkYyIsImlhdCI6MTc0NDMzMTQwNiwiZXhwIjoyMDU5NjkxNDA2fQ.wWC3wnFUL9sBfTTe2x2eNAWq1VdLnH_eEdGJ3VY9YuI"
 
 -- Function to fetch a snapshot from the local Home Assistant server
 local function fetch_snapshot(device)
     local prefs = device:get_field('effective_prefs')
+    if not prefs then
+        log.error("No effective_prefs for " .. device.label)
+        return nil
+    end
     local camera_entity = prefs.haCameraEntity
-
     if not camera_entity then
-        log.error(string.format("No Home Assistant camera entity defined for device %s", device.label))
+        log.error("No HA camera entity for " .. device.label)
         return nil
     end
-
-    local snapshot_url = string.format("%s/api/camera_proxy/%s", HA_LOCAL_URL, camera_entity)
-    log.info(string.format("Fetching snapshot for device %s from local Home Assistant at %s", device.label, snapshot_url))
-
+    local snapshot_url = HA_LOCAL_URL .. "/api/camera_proxy/" .. camera_entity
     local response_body = {}
-    local res, code, headers = http.request {
-        url = snapshot_url,
-        method = "GET",
-        headers = {
-            ["Authorization"] = "Bearer " .. HA_LOCAL_TOKEN,
-            ["Accept"] = "*/*",
-            ["Connection"] = "keep-alive",
-            ["User-Agent"] = "SmartThingsEdgeDriver/1.0"
-        },
-        sink = ltn12.sink.table(response_body)
+    http.TIMEOUT = 30
+    local headers = {
+        ["Authorization"] = "Bearer " .. HA_LOCAL_TOKEN,
+        ["Accept"] = "*/*",
+        ["Connection"] = "keep-alive",
+        ["User-Agent"] = "SmartThingsEdgeDriver/1.0"
     }
-
-    if res and code == 200 then
-        log.info(string.format("Successfully fetched snapshot for device %s from local Home Assistant", device.label))
-        -- The SmartThings app needs a publicly accessible URL; we'll need to handle this separately
-        return snapshot_url
-    else
-        log.error(string.format("Failed to fetch snapshot for device %s from local Home Assistant: HTTP %s", device.label, tostring(code)))
-        log.debug("Response: " .. (table.concat(response_body) or "no response"))
-        return nil
+    for attempt = 1, MAX_RETRIES do
+        local res, code = http.request {
+            url = snapshot_url,
+            method = "GET",
+            headers = headers,
+            sink = ltn12.sink.table(response_body)
+        }
+        if res and code == 200 then
+            log.info("Snapshot fetched for " .. device.label)
+            return snapshot_url
+        end
+        log.warn("Snapshot fetch failed for " .. device.label .. ": HTTP " .. tostring(code))
+        if attempt < MAX_RETRIES then
+            socket.sleep(RETRY_DELAY)
+        end
     end
+    log.error("Snapshot fetch failed after " .. MAX_RETRIES .. " attempts for " .. device.label)
+    return nil
 end
 
 -- Function to construct RTSP URL directly from the device
 local function get_rtsp_url(device)
-    local prefs = device:get_field('effective_prefs')
-    local use_nvr = prefs.useNvrForStreams or false
-    local ip, port, userid, password, stream_path
-
-    if use_nvr then
-        ip = prefs.nvrIp
-        port = prefs.rtspPort
-        userid = prefs.userid
-        password = prefs.password
-        stream_path = "/h264Preview_" .. (device.label:match("Doorbell") and "01_main" or device.label:match("Side Lot") and "02_main" or device.label:match("Driveway Overwatch") and "03_main" or "01_main")
-        log.info(string.format("Using NVR for RTSP stream for device %s at %s:%s", device.label, ip, port))
-    else
-        ip = prefs.ipAddress
-        port = prefs.rtspPort
-        userid = prefs.userid
-        password = prefs.password
-        stream_path = prefs.rtspPath
-        log.info(string.format("Using direct RTSP stream for device %s at %s:%s", device.label, ip, port))
+    local prefs = device:get_field('effective_prefs') or {}
+    local ip = prefs.ipAddress
+    if not ip then
+        ip = device.device_network_id:match("^([^:]+)") or device.label:match("(%d+%.%d+%.%d+%.%d+)") or "unknown_ip"
+        log.warn("No ipAddress in preferences for " .. device.label .. ", using device_network_id: " .. device.device_network_id .. " -> " .. ip)
     end
-
+    local port = prefs.rtspPort or 554
+    local userid = prefs.userid or "admin"
+    local password = prefs.password or "Doggies44"
+    local stream_path = prefs.rtspPath or "/h264Preview_01_main"
     if prefs.stream == "substream" then
         stream_path = stream_path:gsub("_main", "_sub")
     end
     local rtsp_url = string.format("rtsp://%s:%s@%s:%s%s", userid, password, ip, port, stream_path)
+    log.debug("Constructed RTSP URL for " .. device.label .. ": " .. rtsp_url)
     return rtsp_url
 end
 
 -- Utility Function to Emit Stream and Snapshot
 local function emit_video_stream(device)
     local stream_url = get_rtsp_url(device)
-    if not stream_url then
-        log.error("Failed to get stream URL for " .. device.label)
-        device:emit_event(cap_videoStream.streamingStatus("inactive"))
-        device:emit_event(onvif_status.status("error"))
+    if not stream_url or stream_url:match("unknown_ip") then
+        log.error("Invalid stream URL for " .. device.label)
         return
     end
-
-    device:set_field("rtsp_url", stream_url)
-    log.info("Attempting to emit video stream for " .. device.label .. " (network_id: " .. device.device_network_id .. "): " .. stream_url)
-
-    for attempt = 1, MAX_RETRIES do
-        local success, err = pcall(function()
-            device:emit_event(cap_videoStream.stream({ uri = stream_url }))
-            device:emit_event(cap_videoStream.streamingStatus("active"))
-            device:emit_event(onvif_status.status("connected"))
-        end)
-        if success then
-            log.info("Video stream successfully emitted for " .. device.label)
-            break
-        else
-            log.error(string.format("Failed to emit video stream for %s (attempt %d/%d): %s", device.label, attempt, MAX_RETRIES, tostring(err)))
-            if attempt < MAX_RETRIES then
-                log.debug("Retrying in " .. RETRY_DELAY .. " seconds...")
-                socket.sleep(RETRY_DELAY)
-            end
-        end
-    end
-
-    if device:get_field("onvif_status") == "connected" then
+    device:set_field("rtsp_url", stream_url, { persist = true })
+    local success = pcall(function()
+        device:emit_event(cap_videoStream.stream({ uri = stream_url }))
+    end)
+    if success then
+        log.info("Video stream emitted for " .. device.label)
+        device:set_field("onvif_status", "connected", { persist = true })
         local snapshot_url = fetch_snapshot(device)
         if snapshot_url then
             device:emit_event(cap_videoStream.snapshot({ uri = snapshot_url }))
-            log.info("Snapshot emitted for " .. device.label .. ": " .. snapshot_url)
-        else
-            log.error("Failed to emit snapshot for " .. device.label)
+            log.info("Snapshot emitted for " .. device.label)
         end
     else
-        log.error("Failed to emit video stream after " .. MAX_RETRIES .. " attempts for " .. device.label)
-        device:emit_event(cap_videoStream.streamingStatus("inactive"))
-        device:emit_event(onvif_status.status("error"))
+        log.error("Failed to emit video stream for " .. device.label)
     end
 end
 
--- Function to fetch ONVIF info (model and firmware) using the commands module
+-- Function to fetch ONVIF info
 local function fetch_onvif_info(device)
     local prefs = device:get_field('effective_prefs')
+    if not prefs then
+        log.error(string.format("No effective_prefs defined for device %s", device.label))
+        return
+    end
     local ip = prefs.ipAddress
     local port = prefs.port
     local userid = prefs.userid
     local password = prefs.password
     log.debug("Fetching ONVIF info from device at " .. ip .. ":" .. port)
-
     local success, result = pcall(function()
         return commands.GetDeviceInformation(ip, port, userid, password)
     end)
-
     if success and result then
         local model = result.Model or "Unknown Model"
         local firmware = result.FirmwareVersion or "Unknown Firmware"
@@ -341,7 +151,6 @@ local function fetch_onvif_info(device)
         log.info("Successfully fetched ONVIF info for " .. device.label .. ": Model=" .. model .. ", Firmware=" .. firmware)
     else
         log.error("Failed to fetch ONVIF info for " .. device.label .. ": " .. tostring(result))
-        device:emit_event(onvif_status.status("error"))
     end
 end
 
@@ -349,61 +158,51 @@ end
 local onvif_driver = Driver("ONVIF Video Camera V2.1", {
     discovery = function(driver, _, should_continue)
         log.info("Starting ONVIF discovery")
-        discover.discover(5, function(cam_meta)
+        discover.discover(10, function(cam_meta)  -- Increased timeout
+            -- Ensure a valid device_network_id
+            local device_network_id = cam_meta.device_network_id
+            if not device_network_id or device_network_id == "" then
+                device_network_id = cam_meta.ip or cam_meta.urn or "unknown_" .. os.time()
+                log.warn("No valid device_network_id provided, using fallback: " .. device_network_id)
+            end
             local metadata = {
                 type = "LAN",
-                device_network_id = cam_meta.device_network_id,
-                label = cam_meta.label,
+                device_network_id = device_network_id,
+                label = cam_meta.label or "ONVIF Device",
                 profile = "ONVIF-Doorbell",
-                manufacturer = cam_meta.manufacturer,
-                model = cam_meta.hardware,
+                manufacturer = cam_meta.manufacturer or "Unknown",
+                model = cam_meta.hardware or "Unknown",
                 vendor_provided_label = cam_meta.vendname,
                 rtsp_url = cam_meta.rtsp_url
             }
-            log.info("Attempting to create device: " .. cam_meta.label .. " with device_network_id: " .. metadata.device_network_id)
+            log.info("Attempting to create device: " .. metadata.label .. " with device_network_id: " .. metadata.device_network_id)
             driver:try_create_device(metadata)
         end)
     end,
     lifecycle_handlers = {
         init = function(driver, device)
             log.info("Initializing device: " .. device.label)
-            device:emit_event(onvif_status.status("disconnected"))
-
-            -- Fix networkId: remove leading colon or trailing port
-            local new_network_id = device.device_network_id
-            if device.device_network_id:sub(1, 1) == ":" then
-                new_network_id = device.device_network_id:sub(2)
-                log.info("Removed leading colon from networkId: " .. device.device_network_id .. " -> " .. new_network_id)
+            -- Validate and clean device_network_id without direct modification
+            local current_network_id = device.device_network_id
+            local cleaned_network_id = current_network_id:match("^:?([^:]+)") or device.label:match("(%d+%.%d+%.%d+%.%d+)") or "unknown_" .. device.id
+            if current_network_id ~= cleaned_network_id then
+                log.warn("Invalid device_network_id detected: " .. current_network_id .. ", using cleaned: " .. cleaned_network_id)
+                device:set_field("cleaned_network_id", cleaned_network_id, { persist = true })
             end
-            -- Remove port if present (e.g., "10.0.0.102:554" -> "10.0.0.102")
-            local colon_pos = new_network_id:find(":")
-            if colon_pos then
-                new_network_id = new_network_id:sub(1, colon_pos - 1)
-                log.info("Removed port from networkId: " .. device.device_network_id .. " -> " .. new_network_id)
-            end
-            if new_network_id ~= device.device_network_id then
-                device.device_network_id = new_network_id
-                log.info("Updated device_network_id to: " .. device.device_network_id)
-            end
-
-            log.info("Attempting to sync device with updated profile: 113476c0-2367-4594-b83d-c1b50efc1241")
-            device:try_update_metadata({
-                profile = "113476c0-2367-4594-b83d-c1b50efc1241",  -- Replace with the new profile ID
-                vendor_provided_label = "ReolinkVideoDoorbellPoE"
-            })
-
             local default_prefs = {
-                ipAddress = device.label:match("Side Lot") and "10.0.0.58" or device.label:match("Driveway Overwatch") and "10.0.0.102" or "10.0.0.72",
+                ipAddress = device.label:match("Side Lot") and "10.0.0.58" or 
+                            device.label:match("Driveway Overwatch") and "10.0.0.102" or 
+                            device.label:match("Doorbell") and "10.0.0.72" or "10.0.0.67",
                 port = 8000,
                 userid = "admin",
-                password = "password123",
-                stream = "mainstream",  -- Aligns with "fluent" (higher quality); set to "substream" for "clear"
+                password = "Doggies44",
+                stream = "mainstream",
+                rtspPort = 554,
+                rtspPath = "/h264Preview_01_main",
                 enableTwoWayAudio = false,
                 audioFilePath = "/default/audio.wav",
                 quickReply = "Please wait",
                 nvrIp = "10.0.0.67",
-                rtspPath = "h264Preview_01_main",
-                rtspPort = 554,
                 minmotioninterval = 5,
                 minlinecrossinterval = 5,
                 mintamperinterval = 5,
@@ -412,43 +211,21 @@ local onvif_driver = Driver("ONVIF Video Camera V2.1", {
                 revertdelay = 10,
                 enableBackupStream = false,
                 useNvrForStreams = false,
-                -- Home Assistant camera entity for snapshots
                 haCameraEntity = device.label:match("Doorbell") and "camera.frontdoorproxy" or
                                 device.label:match("Side Lot") and "camera.side_lot_fluent" or
                                 device.label:match("Driveway Overwatch") and "camera.driveway_overwatch_snapshots_fluent_lens_0" or "camera.unknown"
             }
-
             local effective_prefs = {}
             for key, default_value in pairs(default_prefs) do
-                if device.preferences[key] ~= nil and not (key == "password" and device.preferences[key] == "Doggies44") then
-                    effective_prefs[key] = device.preferences[key]
-                    log.info(string.format("Using platform preference for %s: %s", key, tostring(effective_prefs[key])))
-                else
-                    effective_prefs[key] = default_value
-                    log.info(string.format("Using default preference for %s: %s", key, tostring(effective_prefs[key])))
+                if not device.preferences[key] then
+                    log.warn(string.format("Preference %s missing for %s, using default: %s", key, device.label, tostring(default_value)))
                 end
+                effective_prefs[key] = device.preferences[key] or default_value
+                log.info(string.format("Set %s to %s for %s", key, tostring(effective_prefs[key]), device.label))
             end
-
             device:set_field('effective_prefs', effective_prefs, { persist = true })
-            log.info("Effective preferences set for device " .. device.label)
-
+            device:set_field("onvif_status", "disconnected", { persist = true })
             emit_video_stream(device)
-
-            -- Start a task to periodically refresh the snapshot
-            cosock.spawn(function()
-                while true do
-                    if device:get_field("onvif_status") == "connected" then
-                        local snapshot_url = fetch_snapshot(device)
-                        if snapshot_url then
-                            device:emit_event(cap_videoStream.snapshot({ uri = snapshot_url }))
-                            log.info("Periodic snapshot emitted for " .. device.label .. ": " .. snapshot_url)
-                        else
-                            log.error("Failed to emit periodic snapshot for " .. device.label)
-                        end
-                    end
-                    socket.sleep(SNAPSHOT_INTERVAL)
-                end
-            end, "snapshot_refresh_task_" .. device.id)
         end,
         added = function(driver, device)
             log.info("Device added: " .. device.label .. " (ID: " .. device.id .. ")")
@@ -462,21 +239,23 @@ local onvif_driver = Driver("ONVIF Video Camera V2.1", {
             emit_video_stream(device)
             onvif_events.subscribe(device)
         end,
-        infoChanged = function(driver, device, event, args)
+        infoChanged = function(driver, device)
             log.info("Device info changed for " .. device.label)
             local effective_prefs = device:get_field('effective_prefs') or {}
             local default_prefs = {
-                ipAddress = device.label:match("Side Lot") and "10.0.0.58" or device.label:match("Driveway Overwatch") and "10.0.0.102" or "10.0.0.72",
+                ipAddress = device.label:match("Side Lot") and "10.0.0.58" or 
+                            device.label:match("Driveway Overwatch") and "10.0.0.102" or 
+                            device.label:match("Doorbell") and "10.0.0.72" or "10.0.0.67",
                 port = 8000,
                 userid = "admin",
-                password = "password123",
+                password = "Doggies44",
                 stream = "mainstream",
+                rtspPort = 554,
+                rtspPath = "/h264Preview_01_main",
                 enableTwoWayAudio = false,
                 audioFilePath = "/default/audio.wav",
                 quickReply = "Please wait",
                 nvrIp = "10.0.0.67",
-                rtspPath = "h264Preview_01_main",
-                rtspPort = 554,
                 minmotioninterval = 5,
                 minlinecrossinterval = 5,
                 mintamperinterval = 5,
@@ -491,14 +270,9 @@ local onvif_driver = Driver("ONVIF Video Camera V2.1", {
             }
             local updated = false
             for key, default_value in pairs(default_prefs) do
-                if args.old_st_device.preferences[key] != device.preferences[key] then
-                    if device.preferences[key] != nil and not (key == "password" and device.preferences[key] == "Doggies44") then
-                        effective_prefs[key] = device.preferences[key]
-                        log.info(string.format("Updated %s to platform value: %s", key, tostring(effective_prefs[key])))
-                    else
-                        effective_prefs[key] = default_value
-                        log.info(string.format("Updated %s to default value: %s", key, tostring(effective_prefs[key])))
-                    end
+                if device.preferences[key] ~= effective_prefs[key] then
+                    effective_prefs[key] = device.preferences[key] or default_value
+                    log.info(string.format("Updated %s to %s", key, tostring(effective_prefs[key])))
                     updated = true
                 end
             end
@@ -514,6 +288,10 @@ local onvif_driver = Driver("ONVIF Video Camera V2.1", {
             ["start"] = function(driver, device, command)
                 log.info("Video capture start requested for " .. device.label)
                 local prefs = device:get_field('effective_prefs')
+                if not prefs then
+                    log.error(string.format("No effective_prefs defined for device %s", device.label))
+                    return
+                end
                 local ip = prefs.ipAddress
                 local port = prefs.port
                 local userid = prefs.userid
@@ -530,6 +308,10 @@ local onvif_driver = Driver("ONVIF Video Camera V2.1", {
             ["stop"] = function(driver, device, command)
                 log.info("Video capture stop requested for " .. device.label)
                 local prefs = device:get_field('effective_prefs')
+                if not prefs then
+                    log.error(string.format("No effective_prefs defined for device %s", device.label))
+                    return
+                end
                 local ip = prefs.ipAddress
                 local port = prefs.port
                 local userid = prefs.userid
@@ -564,12 +346,26 @@ local onvif_driver = Driver("ONVIF Video Camera V2.1", {
     }
 })
 
+-- Periodic Snapshot Refresh Task
+local function start_snapshot_refresh(driver)
+    local function refresh_snapshots()
+        for _, device in ipairs(driver:get_devices()) do
+            if device:get_field("onvif_status") == "connected" then
+                local snapshot_url = fetch_snapshot(device)
+                if snapshot_url then
+                    device:emit_event(cap_videoStream.snapshot({ uri = snapshot_url }))
+                    log.info("Periodic snapshot emitted for " .. device.label .. ": " .. snapshot_url)
+                else
+                    log.error("Failed to emit periodic snapshot for " .. device.label)
+                end
+            end
+        end
+        driver:call_with_delay(SNAPSHOT_INTERVAL, refresh_snapshots, "snapshot_refresh_task")
+    end
+    driver:call_with_delay(10, refresh_snapshots, "snapshot_refresh_task")
+end
+
+start_snapshot_refresh(onvif_driver)
 onvif_driver:run()
 
-return {
-    handle_motion_event = handle_motion_event,
-    handle_linecross_event = handle_linecross_event,
-    handle_tamper_event = handle_tamper_event,
-    handle_visitor_event = handle_visitor_event,
-    send_audio_output_ffmpeg = send_audio_output_ffmpeg
-}
+return event_handlers

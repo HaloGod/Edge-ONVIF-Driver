@@ -1,0 +1,575 @@
+{
+    "dashboard": {
+        "states": [
+            {
+                "component": "main",
+                "capability": "switch",
+                "version": 1,
+                "values": []
+            }
+        ],
+        "actions": [
+            {
+                "component": "main",
+                "capability": "switch",
+                "version": 1,
+                "inline": null
+            }
+        ],
+        "basicPlus": []
+    },
+    "detailView": [
+        {
+            "component": "main",
+            "capability": "switch",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "main",
+            "capability": "refresh",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "main",
+            "capability": "pianodream12480.onvifStatus",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "main",
+            "capability": "pianodream12480.onvifInfo",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "main",
+            "capability": "pianodream12480.refresh",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "main",
+            "capability": "videoStream",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "main",
+            "capability": "videoCapture",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "main",
+            "capability": "audioVolume",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "main",
+            "capability": "notification",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "motionComponent",
+            "capability": "motionSensor",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "motionComponent",
+            "capability": "pianodream12480.motionevents2",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "lineComponent",
+            "capability": "pianodream12480.linecross",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "tamperComponent",
+            "capability": "tamperAlert",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "doorbellComponent",
+            "capability": "button",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "doorbellComponent",
+            "capability": "pianodream12480.doorbell",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "audioComponent",
+            "capability": "pianodream12480.twoWayAudio",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "audioComponent",
+            "capability": "pianodream12480.audioOutput",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "audioComponent",
+            "capability": "audioNotification",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "trackMixComponent",
+            "capability": "pianodream12480.customPtzControl",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "chimeComponent",
+            "capability": "chime",
+            "version": 1,
+            "values": [],
+            "patch": []
+        },
+        {
+            "component": "chimeComponent",
+            "capability": "pianodream12480.customChimeControl",
+            "version": 1,
+            "values": [],
+            "patch": []
+        }
+    ],
+    "automation": {
+        "conditions": [
+            {
+                "component": "main",
+                "capability": "switch",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "main",
+                "capability": "pianodream12480.onvifStatus",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "main",
+                "capability": "pianodream12480.onvifInfo",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "main",
+                "capability": "videoStream",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "main",
+                "capability": "videoCapture",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "main",
+                "capability": "audioVolume",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "motionComponent",
+                "capability": "motionSensor",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "motionComponent",
+                "capability": "pianodream12480.motionevents2",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "lineComponent",
+                "capability": "pianodream12480.linecross",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "tamperComponent",
+                "capability": "tamperAlert",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "doorbellComponent",
+                "capability": "button",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "doorbellComponent",
+                "capability": "pianodream12480.doorbell",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "audioComponent",
+                "capability": "pianodream12480.twoWayAudio",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "audioComponent",
+                "capability": "pianodream12480.audioOutput",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "trackMixComponent",
+                "capability": "pianodream12480.customPtzControl",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "chimeComponent",
+                "capability": "chime",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "chimeComponent",
+                "capability": "pianodream12480.customChimeControl",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            }
+        ],
+        "actions": [
+            {
+                "component": "main",
+                "capability": "switch",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "main",
+                "capability": "refresh",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "main",
+                "capability": "pianodream12480.refresh",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "main",
+                "capability": "videoStream",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "main",
+                "capability": "videoCapture",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "main",
+                "capability": "audioVolume",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "main",
+                "capability": "notification",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "motionComponent",
+                "capability": "pianodream12480.motionevents2",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "audioComponent",
+                "capability": "pianodream12480.twoWayAudio",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "audioComponent",
+                "capability": "pianodream12480.audioOutput",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "audioComponent",
+                "capability": "audioNotification",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "trackMixComponent",
+                "capability": "pianodream12480.customPtzControl",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "chimeComponent",
+                "capability": "chime",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            },
+            {
+                "component": "chimeComponent",
+                "capability": "pianodream12480.customChimeControl",
+                "version": 1,
+                "values": [],
+                "patch": [],
+                "exclusion": []
+            }
+        ]
+    },
+    "type": "profile",
+    "preferences": [
+        {
+            "name": "ipAddress",
+            "title": "Camera IP Address",
+            "description": "Enter the IP address of the camera",
+            "required": true,
+            "displayType": "textField",
+            "textField": {
+                "value": "ipAddress",
+                "minLength": 7,
+                "maxLength": 15,
+                "defaultValue": "192.168.1.100"
+            }
+        },
+        {
+            "name": "port",
+            "title": "Camera Port",
+            "description": "Enter the port number of the camera",
+            "required": false,
+            "displayType": "numberField",
+            "numberField": {
+                "value": "port",
+                "range": [1, 65535],
+                "defaultValue": 80
+            }
+        },
+        {
+            "name": "userid",
+            "title": "Camera Username",
+            "description": "Enter the username for camera authentication",
+            "required": true,
+            "displayType": "textField",
+            "textField": {
+                "value": "userid",
+                "minLength": 1,
+                "maxLength": 50,
+                "defaultValue": "admin"
+            }
+        },
+        {
+            "name": "password",
+            "title": "Camera Password",
+            "description": "Enter the password for camera authentication (avoid special characters like @, &, etc.)",
+            "required": true,
+            "displayType": "textField",
+            "textField": {
+                "value": "password",
+                "minLength": 1,
+                "maxLength": 50,
+                "defaultValue": "password",
+                "type": "password"
+            }
+        },
+        {
+            "name": "stream",
+            "title": "Stream Type",
+            "description": "Select the stream type (mainstream or substream)",
+            "required": false,
+            "displayType": "list",
+            "list": {
+                "value": "stream",
+                "options": [
+                    {
+                        "name": "Main Stream",
+                        "value": "mainstream"
+                    },
+                    {
+                        "name": "Sub Stream",
+                        "value": "substream"
+                    }
+                ],
+                "defaultValue": "mainstream"
+            }
+        },
+        {
+            "name": "enableTwoWayAudio",
+            "title": "Enable Two-Way Audio",
+            "description": "Enable two-way audio if supported",
+            "required": false,
+            "displayType": "toggleSwitch",
+            "toggleSwitch": {
+                "value": "enableTwoWayAudio",
+                "defaultValue": false
+            }
+        },
+        {
+            "name": "audioFilePath",
+            "title": "Audio File Path",
+            "description": "Path to audio file for quick reply",
+            "required": false,
+            "displayType": "textField",
+            "textField": {
+                "value": "audioFilePath",
+                "minLength": 1,
+                "maxLength": 100,
+                "defaultValue": "/default/audio.wav"
+            }
+        },
+        {
+            "name": "quickReply",
+            "title": "Quick Reply Message",
+            "description": "Message to play when doorbell is pressed",
+            "required": false,
+            "displayType": "textField",
+            "textField": {
+                "value": "quickReply",
+                "minLength": 1,
+                "maxLength": 50,
+                "defaultValue": "Please wait."
+            }
+        },
+        {
+            "name": "nvrIp",
+            "title": "NVR IP Address",
+            "description": "Enter the IP address of the NVR (optional)",
+            "required": false,
+            "displayType": "textField",
+            "textField": {
+                "value": "nvrIp",
+                "minLength": 0,
+                "maxLength": 15,
+                "defaultValue": ""
+            }
+        },
+        {
+            "name": "rtspPath",
+            "title": "RTSP Stream Path",
+            "description": "Enter the RTSP stream path (e.g., h264Preview_01_main)",
+            "required": true,
+            "displayType": "textField",
+            "textField": {
+                "value": "rtspPath",
+                "minLength": 1,
+                "maxLength": 50,
+                "defaultValue": "h264Preview_01_main"
+            }
+        },
+        {
+            "name": "rtspPort",
+            "title": "RTSP Port",
+            "description": "Enter the RTSP port number of the camera",
+            "required": false,
+            "displayType": "numberField",
+            "numberField": {
+                "value": "rtspPort",
+                "range": [1, 65535],
+                "defaultValue": 554
+            }
+        }
+    ]
+}

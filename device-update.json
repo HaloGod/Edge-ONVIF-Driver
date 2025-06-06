@@ -1,0 +1,16 @@
+{
+    "label": "ReolinkVideoDoorbellPoE",
+    "preferences": {
+        "ipAddress": "10.0.0.72",
+        "port": 8000,
+        "userid": "admin",
+        "password": "password123",
+        "stream": "mainstream",
+        "enableTwoWayAudio": false,
+        "audioFilePath": "/default/audio.wav",
+        "quickReply": "Please wait",
+        "nvrIp": "10.0.0.67",
+        "rtspPath": "h264Preview_01_main",
+        "rtspPort": 554
+    }
+}

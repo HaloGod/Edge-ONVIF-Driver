@@ -1,0 +1,191 @@
+{
+    "deviceId": "469f9ce6-e453-41bd-9f28-eb144ff68335",
+    "ownerId": "19fba536-26e6-80b6-1926-17f5df7ca77e",
+    "name": "ONVIF-Doorbell",
+    "label": "Reolink Doorbell",
+    "deviceManufacturerCode": "IPC",
+    "manufacturerName": "SmartThings",
+    "deviceModel": "ReolinkVideoDoorbellPoE",
+    "presentationId": "onvifcam_v5",
+    "locationId": "f8641afc-ef09-462e-a2e3-fc983bae75e6",
+    "roomId": "fc9cc0bc-f028-4538-8e4a-e98698fec164",
+    "sharedLocations": [],
+    "components": [
+        {
+            "id": "main",
+            "label": "Main",
+            "capabilities": [
+                {
+                    "id": "switch",
+                    "version": 1
+                },
+                {
+                    "id": "refresh",
+                    "version": 1
+                },
+                {
+                    "id": "pianodream12480.onvifStatus",
+                    "version": 1
+                },
+                {
+                    "id": "pianodream12480.onvifInfo",
+                    "version": 1
+                },
+                {
+                    "id": "pianodream12480.refresh",
+                    "version": 1
+                },
+                {
+                    "id": "videoStream",
+                    "version": 1
+                },
+                {
+                    "id": "videoCapture",
+                    "version": 1
+                }
+            ],
+            "categories": [
+                {
+                    "name": "Camera",
+                    "categoryType": "manufacturer"
+                }
+            ]
+        },
+        {
+            "id": "motionComponent",
+            "label": "Motion Events",
+            "capabilities": [
+                {
+                    "id": "pianodream12480.motionevents2",
+                    "version": 1
+                }
+            ],
+            "categories": [
+                {
+                    "name": "Other",
+                    "categoryType": "manufacturer"
+                }
+            ]
+        },
+        {
+            "id": "lineComponent",
+            "label": "Line Cross Events",
+            "capabilities": [
+                {
+                    "id": "pianodream12480.linecross",
+                    "version": 1
+                }
+            ],
+            "categories": [
+                {
+                    "name": "Other",
+                    "categoryType": "manufacturer"
+                }
+            ]
+        },
+        {
+            "id": "tamperComponent",
+            "label": "Tamper Events",
+            "capabilities": [
+                {
+                    "id": "tamperAlert",
+                    "version": 1
+                }
+            ],
+            "categories": [
+                {
+                    "name": "Other",
+                    "categoryType": "manufacturer"
+                }
+            ]
+        },
+        {
+            "id": "doorbellComponent",
+            "label": "Doorbell",
+            "capabilities": [
+                {
+                    "id": "pianodream12480.doorbell",
+                    "version": 1
+                }
+            ],
+            "categories": [
+                {
+                    "name": "Other",
+                    "categoryType": "manufacturer"
+                }
+            ]
+        },
+        {
+            "id": "audioComponent",
+            "label": "Audio Communication",
+            "capabilities": [
+                {
+                    "id": "pianodream12480.twoWayAudio",
+                    "version": 1
+                },
+                {
+                    "id": "pianodream12480.audioOutput",
+                    "version": 1
+                }
+            ],
+            "categories": [
+                {
+                    "name": "Other",
+                    "categoryType": "manufacturer"
+                }
+            ]
+        },
+        {
+            "id": "trackMixComponent",
+            "label": "TrackMix Controls",
+            "capabilities": [
+                {
+                    "id": "pianodream12480.customPtzControl",
+                    "version": 1
+                }
+            ],
+            "categories": [
+                {
+                    "name": "Other",
+                    "categoryType": "manufacturer"
+                }
+            ]
+        },
+        {
+            "id": "chimeComponent",
+            "label": "Chime",
+            "capabilities": [
+                {
+                    "id": "pianodream12480.customChimeControl",
+                    "version": 1
+                }
+            ],
+            "categories": [
+                {
+                    "name": "Other",
+                    "categoryType": "manufacturer"
+                }
+            ]
+        }
+    ],
+    "createTime": "2025-04-09T02:01:03.907Z",
+    "parentDeviceId": "83404a4e-b2af-469e-b4f2-3363cb76723a",
+    "profile": {
+        "id": "f90efd0d-80dd-3d9a-ad8e-7f5015576cc0"
+    },
+    "lan": {
+        "networkId": ":10.0.0.72",
+        "driverId": "3f8372e4-5dc4-48d2-bdd4-2a6780ddf076",
+        "executingLocally": true,
+        "hubId": "83404a4e-b2af-469e-b4f2-3363cb76723a",
+        "provisioningState": "TYPED"
+    },
+    "type": "LAN",
+    "vid": "onvifcam_v5",
+    "mnmn": "SmartThings",
+    "ocfDeviceType": "oic.d.camera",
+    "restrictionTier": 0,
+    "allowed": null,
+    "executionContext": "LOCAL",
+    "relationships": []
+}

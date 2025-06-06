@@ -41,7 +41,7 @@ local MAX_RETRIES = 3
 local RETRY_DELAY = 5
 local SNAPSHOT_INTERVAL = 120
 local HA_LOCAL_URL = "http://10.0.0.122:8123"
-local HA_LOCAL_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmYzZiMTA4ZTZhZjQ0MmM0ODJmNWVmYTg3MzY0N2JkYyIsImlhdCI6MTc0NDMzMTQwNiwiZXhwIjoyMDU5NjkxNDA2fQ.wWC3wnFUL9sBfTTe2x2eNAWq1VdLnH_eEdGJ3VY9YuI"
+local HA_LOCAL_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIwZWI4MzEyMjAyYTA0MzE1YjE1NmQ3ZGJiMWFhYjU1YSIsImlhdCI6MTc0NjgzNTU3MywiZXhwIjoyMDYyMTk1NTczfQ.VUmVWcIUQeEl9KFkETuFvNyztJftYJiGlJ3B6uQHkQ0"
 
 -- Function to fetch a snapshot from the local Home Assistant server
 local function fetch_snapshot(device)

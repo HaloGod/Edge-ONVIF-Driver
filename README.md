@@ -14,6 +14,10 @@ Seamlessly integrate ONVIF-compliant cameras and Reolink POE Doorbells into Smar
 
 🔧 Supports NVR-based streaming (Reolink RLN36) and improved Reolink discovery.
 
+🔔 Doorbell presses override NVR routing to stream and snapshot directly from the camera.
+
+📺 View cameras as Action Tiles or combine them in a Camera Group.
+
 ⚙️ Requirements
 SmartThings Hub (Edge compatible)
 
@@ -40,6 +44,8 @@ For Doorbells:
 Receive push notifications on press.
 
 Use two-way audio and chime controls via SmartThings app.
+
+Doorbell video and snapshots use the camera directly while other streams go through the NVR.
 
 Add devices to a Camera Group for live streaming view.
 

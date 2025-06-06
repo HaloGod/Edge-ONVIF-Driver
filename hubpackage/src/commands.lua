@@ -9,6 +9,8 @@ local config = require "config"
 local capabilities = require "st.capabilities"
 local auth = require "auth"
 local json = require "dkjson"
+local onvif_events = require "onvif_events"
+local event_handlers = require "event_handlers"
 
 local M = {}
 
@@ -186,6 +188,17 @@ function M.smart_initialize(device)
 
   M.query_device_capabilities(device)
   M.update_recording_state(device)
+
+  -- Subscribe to ONVIF events for doorbell and motion notifications
+  onvif_events.subscribe(device, function(evt)
+    if evt == "VisitorAlarm" then
+      event_handlers.handle_doorbell_press(device)
+    elseif evt == "MotionAlarm" then
+      event_handlers.handle_motion_trigger(device)
+    elseif evt == "TamperAlarm" then
+      device:emit_event(capabilities.tamperAlert.tamper("detected"))
+    end
+  end)
 end
 
 return M

@@ -35,6 +35,12 @@ M.EMIT_CUSTOM_EVENTS = true
 M.ALLOW_HTTPS = true
 M.FORCE_HTTP = false
 
+-- ONVIF Event Polling Interval (seconds)
+M.BACKOFF_BASE = 10
+
+-- Verbose logging toggle
+M.DEBUG_MODE = false
+
 -- Default Device Profile Map
 M.DEFAULT_PROFILES = {
   doorbell = "snapshot-tile-profile-doorbell",  -- corresponds to snapshot-tile-profile-doorbell.yaml

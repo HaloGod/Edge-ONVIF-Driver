@@ -39,6 +39,11 @@ local function emit_video_stream(device)
   -- Example: map NVR channel X to virtual device and update its tile too (deferred, pending prototype validation)
 end
 
+-- Handle doorbell ring events
+local function handle_doorbell_press(device)
+  event_handlers.handle_doorbell_press(device)
+end
+
 
 -- Lifecycle Init
 local function init_device(driver, device)

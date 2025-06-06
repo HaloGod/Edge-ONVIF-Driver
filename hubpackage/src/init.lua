@@ -9,6 +9,7 @@ local http = cosock.asyncify("socket.http")
 local event_handlers = require "event_handlers"
 local common = require "common"
 local commands = require "commands"
+local onvif_events = require "onvif_events"
 local discover = require "discover"
 local config = require "config"
 local capability_handlers = require "capability_handlers"
@@ -67,6 +68,14 @@ local function init_device(driver, device)
   device.thread:queue_event(function()
     commands.smart_initialize(device)
     emit_video_stream(device)
+    -- Start ONVIF PullPoint subscription for doorbell and motion events
+    onvif_events.subscribe(device, function(evt)
+      if evt == "VisitorAlarm" then
+        handle_doorbell_press(device)
+      elseif evt == "MotionAlarm" then
+        event_handlers.handle_motion_trigger(device)
+      end
+    end)
   end, device)
 end
 

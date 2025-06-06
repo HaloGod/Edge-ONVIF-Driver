@@ -20,6 +20,7 @@ if not extract then
             return band(shr(v, from), shl(1, width) - 1)
         end
     elseif _G._VERSION == "Lua 5.1" then
+        local floor = math.floor
         extract = function(v, from, width)
             local w = 0
             for i = from, from + width - 1 do

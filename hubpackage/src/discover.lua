@@ -11,6 +11,50 @@ local auth = require "auth"
 
 local M = {}
 
+-- Active subnet scan for Reolink cameras/NVRs using HTTP GetDevInfo
+local function scan_reolink_subnets(subnets, callback)
+  if not config.REOLINK_SCAN_ENABLED then return end
+  local http = cosock.asyncify("socket.http")
+  local ltn12 = require "ltn12"
+  for _, prefix in ipairs(subnets) do
+    for host = 2, 254 do
+      local ip = string.format("%s.%d", prefix, host)
+      local payload = '[{"cmd":"GetDevInfo"}]'
+      local resp = {}
+      local _, code = http.request {
+        method = "POST",
+        url = string.format("http://%s/api.cgi?cmd=GetDevInfo", ip),
+        headers = {
+          ["Content-Type"] = "application/json",
+          ["Content-Length"] = tostring(#payload)
+        },
+        source = ltn12.source.string(payload),
+        sink = ltn12.sink.table(resp),
+        timeout = 2
+      }
+      if code == 200 then
+        local parsed = json.decode(table.concat(resp))
+        local dev = parsed and parsed[1] and parsed[1].value and parsed[1].value.DevInfo
+        if dev then
+          local meta = {
+            ip = ip,
+            urn = dev.serial or ("Scan_" .. os.time()),
+            label = dev.model or "Reolink",
+            vendname = "Reolink",
+            hardware = dev.model,
+            uri = { device_service = "http://" .. ip .. "/onvif/device_service" },
+            scopes = {},
+            profiles = {},
+            discotype = "reolink",
+            profile_hint = dev.exactType == "NVR" and "nvr" or (dev.exactType == "BELL" and "doorbell") or "standard"
+          }
+          callback(meta)
+        end
+      end
+    end
+  end
+end
+
 local function parse_scopes(scope_str)
   local scopes = {}
   for match in scope_str:gmatch("onvif://www.onvif.org/[^%s]+") do
@@ -140,6 +184,9 @@ function M.discover(timeout, callback)
       socket.sleep(0.1)
     end
   end
+
+  -- Actively scan configured subnets for Reolink devices
+  scan_reolink_subnets(config.REOLINK_SUBNETS or {}, callback)
 end
 
 return M

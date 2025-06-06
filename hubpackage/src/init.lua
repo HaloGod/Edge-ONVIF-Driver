@@ -10,6 +10,7 @@ local event_handlers = require "event_handlers"
 local common = require "common"
 local commands = require "commands"
 local discover = require "discover"
+local onvif_events = require "onvif_events"
 local config = require "config"
 local capability_handlers = require "capability_handlers"
 local semaphore = require "semaphore"
@@ -64,10 +65,23 @@ local function init_device(driver, device)
     device:set_field("nvr_channel", 0)
   end
 
-  device.thread:queue_event(function()
+  cosock.spawn(function()
     commands.smart_initialize(device)
     emit_video_stream(device)
-  end, device)
+    onvif_events.subscribe(device, function(event)
+      if event == "VisitorAlarm" then
+        event_handlers.handle_doorbell_press(device)
+      elseif event == "MotionAlarm" then
+        event_handlers.handle_motion_trigger(device)
+      elseif event == "Person" then
+        event_handlers.handle_object_event(device, "person")
+      elseif event == "Vehicle" then
+        event_handlers.handle_object_event(device, "vehicle")
+      elseif event == "Animal" then
+        event_handlers.handle_object_event(device, "animal")
+      end
+    end)
+  end, "device_init")
 end
 
 -- Discovery Handler

@@ -4,15 +4,15 @@ Seamlessly integrate ONVIF-compliant cameras and Reolink POE Doorbells into Smar
 🚀 Features
 📹 Stream video from ONVIF Profile S cameras.
 
-🚪 Doorbell press notifications (SmartThings TV & Hub compatible).
+🚪 Doorbell press notifications with PIP on SmartThings TVs and Bespoke HomeHub.
 
 🎥 Automatic snapshot refresh.
 
 🎚️ Two-way audio & chime control for Reolink Doorbells.
 
-🏃 Motion detection & routine triggers.
+🏃 Motion, person, animal and vehicle detection events for automations.
 
-🔧 Supports NVR-based streaming (Reolink RLN36).
+🔧 Supports NVR-based streaming (Reolink RLN36) and improved Reolink discovery.
 
 ⚙️ Requirements
 SmartThings Hub (Edge compatible)
@@ -48,7 +48,7 @@ Trigger routines on:
 
 Doorbell press.
 
-Motion detection.
+Motion, person, animal and vehicle detection.
 
 Example:
 "If Doorbell Pressed ➜ Play Chime & Send Notification."
@@ -61,7 +61,7 @@ Motion events may fail if devices are behind firewalls or on separate subnets.
 RTSP URL exposes credentials due to SmartThings platform limits.
 
 📑 Supported Devices
-Reolink: POE Doorbells, E1 Pro, RLC Series
+Reolink: POE Doorbells, E1 Pro, RLC Series, RLN NVRs
 
 Hikvision, Foscam, Axis, TP-Link TAPO, and more.
 

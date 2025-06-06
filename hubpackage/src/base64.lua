@@ -23,13 +23,13 @@ if not extract then
         extract = function(v, from, width)
             local w = 0
             for i = from, from + width - 1 do
-                w = w + (((v // 2^i) % 2) * 2^(i - from))
+                w = w + (((math.floor(v / 2^i)) % 2) * 2^(i - from))
             end
             return w
         end
     else
         extract = function(v, from, width)
-            return (v >> from) & ((1 << width) - 1)
+            return math.floor(v / 2^from) % 2^width
         end
     end
 end
@@ -125,8 +125,11 @@ function base64.decode(b64, decoder, usecaching, validate)
         local s
         if usecaching then
             local v0 = a * 0x1000000 + b * 0x10000 + c * 0x100 + d
-            s = cache[v0] or char(extract(decoder[a] * 0x40000 + decoder[b] * 0x1000 + decoder[c] * 0x40 + decoder[d], 16, 8), extract(v, 8, 8), extract(v, 0, 8))
-            if not cache[v0] and next(cache, CACHE_SIZE_LIMIT) == nil then cache[v0] = s end
+            local v = decoder[a] * 0x40000 + decoder[b] * 0x1000 + decoder[c] * 0x40 + decoder[d]
+            s = cache[v0] or char(extract(v, 16, 8), extract(v, 8, 8), extract(v, 0, 8))
+            if not cache[v0] and next(cache, CACHE_SIZE_LIMIT) == nil then
+                cache[v0] = s
+            end
         else
             local v = decoder[a] * 0x40000 + decoder[b] * 0x1000 + decoder[c] * 0x40 + decoder[d]
             s = char(extract(v, 16, 8), extract(v, 8, 8), extract(v, 0, 8))

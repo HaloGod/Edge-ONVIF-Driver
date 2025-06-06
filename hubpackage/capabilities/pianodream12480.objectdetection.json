@@ -1,0 +1,16 @@
+{
+  "id": "pianodream12480.objectDetection",
+  "version": 1,
+  "status": "proposed",
+  "name": "objectDetection",
+  "attributes": {
+    "detection": {
+      "schema": {
+        "type": "string",
+        "enum": ["none", "motion", "person", "animal", "vehicle"]
+      }
+    }
+  },
+  "commands": {},
+  "capabilityType": "custom"
+}

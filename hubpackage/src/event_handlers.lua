@@ -68,6 +68,11 @@ function M.handle_doorbell_press(device)
 
   -- Always refresh snapshot to update tile (even if motion missed it)
   commands.refresh_snapshot(device)
+  -- Emit stream URL to trigger PIP on supported TVs/Fridge
+  device:emit_event(capabilities.videoStream.stream({
+    url = commands.get_stream_url(device),
+    protocol = "rtsp"
+  }))
 end
 
 -- Motion Detected → Trigger Snapshot
@@ -79,6 +84,18 @@ function M.handle_motion_trigger(device)
 
   device.thread:call_with_delay(30, function()
     device:emit_event(capabilities.motionSensor.motion("inactive"))
+  end)
+end
+
+-- Generic object detection handler (person/vehicle/animal)
+function M.handle_object_event(device, object)
+  local cap_obj = capabilities["pianodream12480.objectDetection"]
+  device:emit_event(cap_obj.detection(object))
+  device:emit_event(capabilities.motionSensor.motion("active"))
+  commands.refresh_snapshot(device)
+  device.thread:call_with_delay(30, function()
+    device:emit_event(capabilities.motionSensor.motion("inactive"))
+    device:emit_event(cap_obj.detection("none"))
   end)
 end
 

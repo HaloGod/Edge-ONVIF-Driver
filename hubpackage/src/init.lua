@@ -1,283 +1,156 @@
---[[
-  Copyright 2022 Todd Austin, enhanced 2025 by HaloGod and suggestions for dMac
+-- init.lua (Enhanced Lifecycle Handler with Snapshot/Stream Integration)
 
-  Licensed under the Apache License, Version 2.0 (the "License");
-  http://www.apache.org/licenses/LICENSE-2.0
---]]
-
--- Edge libraries
 local capabilities = require "st.capabilities"
-local socket = require "cosock.socket"
-local log = require "log"
 local Driver = require "st.driver"
+local log = require "log"
+local cosock = require "cosock"
+local http = cosock.asyncify("socket.http")
 
--- Driver-specific libraries
+local event_handlers = require "event_handlers"
 local common = require "common"
 local commands = require "commands"
 local discover = require "discover"
+local config = require "config"
+local capability_handlers = require "capability_handlers"
+local semaphore = require "semaphore"
 
--- Capabilities
-local cap_motionSensor = capabilities.motionSensor
-local cap_tamperAlert = capabilities.tamperAlert
+-- Custom capabilities
 local cap_doorbell = capabilities["pianodream12480.doorbell"]
-local cap_linecross = capabilities["pianodream12480.linecross"]
-local cap_videoStream = capabilities.videoStream
-local cap_videoCapture = capabilities.videoCapture
+local cap_twoWayAudio = capabilities["pianodream12480.twoWayAudio"]
 
--- Constants
-local LINECROSSREVERTDELAY = 1
-local DEFAULT_AUDIO_TIMEOUT = 10
-
--- Event Handler Functions
-local function handle_motion_event(device, cam_func, msg)
-    local name, value
-    if common.is_element(msg, {'Message', 'Message', 'Data', 'SimpleItem', '_attr', 'Name'}) then
-        name = msg.Message.Message.Data.SimpleItem._attr.Name
-        value = msg.Message.Message.Data.SimpleItem._attr.Value
-        if name == cam_func.motion_eventrule.item then
-            log.info(string.format('Message for %s: %s', device.label, msg.Topic[1]))
-            log.info(string.format('\tMotion value = "%s"', value))
-            if (value == 'true') or (value == '1') then
-                if (socket.gettime() - device:get_field('LastMotion')) >= device.preferences.minmotioninterval then
-                    device:emit_event(cap_motionSensor.motion('active'))
-                    device:set_field('LastMotion', socket.gettime())
-                    if device.preferences.autorevert == 'yesauto' then
-                        device.thread:call_with_delay(device.preferences.revertdelay, function()
-                            device:emit_event(cap_motionSensor.motion('inactive'))
-                        end, 'revert motion')
-                    end
-                else
-                    log.info('Motion event ignored due to configured min interval')
-                end
-            else
-                device:emit_event(cap_motionSensor.motion('inactive'))
-            end
-        else
-            log.error('Item name mismatch with event message:', name)
-        end
-    else
-        log.error('Missing event item name/value')
-    end
-end
-
-local function handle_linecross_event(device, cam_func, msg)
-    if not device:supports_capability_by_id("pianodream12480.linecross") then return end
-    local name, value
-    if common.is_element(msg, {'Message', 'Message', 'Data', 'SimpleItem', '_attr', 'Name'}) then
-        name = msg.Message.Message.Data.SimpleItem._attr.Name
-        value = msg.Message.Message.Data.SimpleItem._attr.Value
-        if name == cam_func.linecross_eventrule.item then
-            log.info(string.format('Linecross notification for %s: %s', device.label, msg.Topic[1]))
-            log.info(string.format('\tValue = "%s"', value, type(value)))
-            if type(value) == 'string' then value = string.lower(value) end
-            if (value ~= 'false') and (value ~= '0') then
-                if (socket.gettime() - device:get_field('LastLinecross')) >= device.preferences.minlinecrossinterval then
-                    device:emit_component_event(device.profile.components.line, cap_linecross.linecross('active'))
-                    device:set_field('LastLinecross', socket.gettime())
-                    device.thread:call_with_delay(LINECROSSREVERTDELAY, function()
-                        device:emit_component_event(device.profile.components.line, cap_linecross.linecross('inactive'))
-                    end, 'revert linecross')
-                else
-                    log.info('Linecross event ignored due to configured min interval')
-                end
-            else
-                device:emit_component_event(device.profile.components.line, cap_linecross.linecross('inactive'))
-            end
-        else
-            log.error('Item name mismatch with event message:', name)
-        end
-    else
-        log.error('Missing linecross event item name/value')
-    end
-end
-
-local function handle_tamper_event(device, cam_func, msg)
-    if not device:supports_capability_by_id('tamperAlert') then return end
-    local name, value
-    if common.is_element(msg, {'Message', 'Message', 'Data', 'SimpleItem', '_attr', 'Name'}) then
-        name = msg.Message.Message.Data.SimpleItem._attr.Name
-        value = msg.Message.Message.Data.SimpleItem._attr.Value
-        if name == cam_func.tamper_eventrule.item then
-            log.info(string.format('Tamper notification for %s: %s', device.label, msg.Topic[1]))
-            log.info(string.format('\tValue = "%s"', value))
-            if (value == 'true') or (value == '1') then
-                if (socket.gettime() - device:get_field('LastTamper')) >= device.preferences.mintamperinterval then
-                    device:emit_component_event(device.profile.components.tamper, cap_tamperAlert.tamper('detected'))
-                    device:set_field('LastTamper', socket.gettime())
-                    if device.preferences.autorevert == 'yesauto' then
-                        device.thread:call_with_delay(device.preferences.revertdelay, function()
-                            device:emit_component_event(device.profile.components.tamper, cap_tamperAlert.tamper('clear'))
-                        end, 'revert tamper')
-                    end
-                else
-                    log.info('Tamper event ignored due to configured min interval')
-                end
-            else
-                device:emit_component_event(device.profile.components.tamper, cap_tamperAlert.tamper('clear'))
-            end
-        else
-            log.error('Item name mismatch with event message:', name)
-        end
-    else
-        log.error('Missing tamper event item name/value')
-    end
-end
-
-local function handle_stream(device, cam_func)
-    if cam_func.stream_uri then
-        local stream_url = cam_func.stream_uri
-        if device.preferences.enableBackupStream and cam_func.backup_stream_uri then
-            log.warn("Backup stream requested but availability check skipped (no io library)")
-            stream_url = cam_func.backup_stream_uri
-            log.info('Switched to backup stream:', stream_url)
-        end
-        device:emit_event(cap_videoStream.stream({ uri = stream_url }))
-    else
-        log.error('No stream URI available for', device.label)
-    end
-end
-
-local function handle_visitor_event(device, cam_func, msg, timeout)
-    timeout = timeout or DEFAULT_AUDIO_TIMEOUT
-    if not device:supports_capability_by_id('pianodream12480.doorbell') then return end
-    local name, value
-    if common.is_element(msg, {'Message', 'Message', 'Data', 'SimpleItem', '_attr', 'Name'}) then
-        name = msg.Message.Message.Data.SimpleItem._attr.Name
-        value = msg.Message.Message.Data.SimpleItem._attr.Value
-        if name == cam_func.visitor_eventrule.item then
-            log.info(string.format('Visitor notification for %s: %s', device.label, msg.Topic[1]))
-            log.info(string.format('\tVisitor value = "%s"', value))
-            if (value == 'true') or (value == '1') then
-                if (socket.gettime() - (device:get_field('LastVisitor') or 0)) >= (device.preferences.minvisitorinterval or 5) then
-                    device:emit_component_event(device.profile.components.doorbellComponent, cap_doorbell.doorbell('pushed'))
-                    device:set_field('LastVisitor', socket.gettime())
-                    handle_stream(device, cam_func)
-                    if device.preferences.enableTwoWayAudio and cam_func.audio_output_token then
-                        log.debug('Sending audio for', device.label)
-                        local success = commands.SendAudioOutput(device, cam_func.audio_output_token, "Visitor detected", timeout)
-                        if not success then
-                            log.warn('ONVIF audio output failed, attempting ffmpeg fallback')
-                            local ffmpeg_success = send_audio_output_ffmpeg(device, cam_func.audio_output_token, device.preferences.audioFilePath)
-                            if not ffmpeg_success then
-                                log.error('Both ONVIF and ffmpeg audio output failed for', device.label)
-                            end
-                        end
-                    end
-                else
-                    log.info('Visitor event ignored due to min interval')
-                end
-            end
-        else
-            log.error('Item name mismatch with Visitor event:', name)
-        end
-    else
-        log.error('Missing Visitor event item name/value')
-    end
-end
-
-local function send_audio_output_ffmpeg(device, output_token, audio_file)
-    local cam_func = device:get_field('onvif_func')
-    if not cam_func or not cam_func.stream_uri then
-        log.error('Cannot find stream URI for ffmpeg audio output')
-        return false
-    end
-    local rtsp_url = 'rtsp://' .. device.preferences.userid .. ':' .. device.preferences.password .. '@' .. cam_func.stream_uri:match('//(.+)')
-    local ffmpeg_cmd = string.format('ffmpeg -re -i "%s" -c:a aac -b:a 64k -f rtsp "%s"', audio_file, rtsp_url)
-    log.debug('Executing ffmpeg command:', ffmpeg_cmd)
-    log.error('ffmpeg not available in this environment (no io library)')
-    return false
-end
-
--- Utility Function to Emit Stream
+-- Emit RTSP stream for live viewer tap, plus periodic fallback snapshot refresh for tiles
 local function emit_video_stream(device)
-    local ip = device.preferences.ipAddress
-    if not ip then
-        ip = device.device_network_id:match("^([^:]+)") or "unknown_ip"
-        log.warn("No ipAddress in preferences for " .. device.label .. ", using device_network_id: " .. ip)
-    end
-    local username = device.preferences.userid or "admin"
-    local password = device.preferences.password or "Doggies44"
-    local stream_path = device.preferences.stream == "substream" and "/h264Preview_01_sub" or "/h264Preview_01_main"
-    local rtsp_url = string.format("rtsp://%s:%s@%s:554%s", username, password, ip, stream_path)
-    device:set_field("rtsp_url", rtsp_url)
-    log.info("Emitting video stream for " .. device.label .. " (network_id: " .. device.device_network_id .. "): " .. rtsp_url)
-    device:emit_event(cap_videoStream.stream({ uri = rtsp_url }))
+  local rtsp_url = commands.get_stream_url(device)
+
+  -- Emit RTSP for live stream viewer
+  device:emit_event(capabilities.videoStream.stream({
+    url = rtsp_url,
+    protocol = "rtsp"
+  }))
+  log.info("📡 RTSP stream emitted for " .. device.label)
+
+  -- Schedule periodic snapshot refresh every 15 minutes for tile view fallback
+  device.thread:call_with_delay(900, function()
+    log.debug("🕒 Periodic snapshot refresh for: " .. device.label)
+    commands.refresh_snapshot(device)
+  end)
+
+  -- NOTE: If this is an NVR cycling channels, consider emitting the snapshot from NVR to corresponding camera devices in the future
+  -- Example: map NVR channel X to virtual device and update its tile too (deferred, pending prototype validation)
 end
 
--- Driver Setup
-local onvif_driver = Driver("ONVIF Video Camera V2.1", {
-    discovery = function(driver, _, should_continue)
-        log.info("Starting ONVIF discovery")
-        discover.discover(5, function(cam_meta)
-            local metadata = {
-                type = "LAN",
-                device_network_id = cam_meta.device_network_id,
-                label = cam_meta.label,
-                profile = "ONVIF-Doorbell",
-                manufacturer = cam_meta.manufacturer,
-                model = cam_meta.hardware,
-                vendor_provided_label = cam_meta.vendname,
-                rtsp_url = cam_meta.rtsp_url
-            }
-            log.info("Attempting to create device: " .. cam_meta.label)
-            driver:try_create_device(metadata)
+-- Trigger snapshot on doorbell ring (if motion doesn't catch it)
+local function handle_doorbell_press(device)
+  if config.EMIT_STANDARD_EVENTS then
+    device:emit_event(capabilities.button.button.pushed({ state_change = true }))
+    log.info("🔔 Standard doorbell event emitted for SmartThings TV/Fridge")
+  end
+  if config.EMIT_CUSTOM_EVENTS then
+    device:emit_event(cap_doorbell.button("pressed"))
+    log.info("🔔 Custom doorbell event emitted")
+  end
+
+  -- Always refresh snapshot on button press to update tile view
+  commands.refresh_snapshot(device)
+end
+
+-- Lifecycle Init
+local function init_device(driver, device)
+  log.info("⚙️ Device init started for: " .. device.label)
+  device:set_field("init_retries", 0)
+
+  -- Set default NVR channel if applicable
+  if not device:get_field("nvr_channel") then
+    device:set_field("nvr_channel", 0)
+  end
+
+  device.thread:queue_event(function()
+    commands.smart_initialize(device)
+    emit_video_stream(device)
+  end, device)
+end
+
+-- Discovery Handler
+local newly_added = {}
+local devcreate_sem = semaphore()
+
+local function discovery_handler(driver, _, should_continue)
+  log.info("🔍 Starting ONVIF discovery phase")
+
+  local known_devices = {}
+  for _, device in ipairs(driver:get_devices()) do
+    known_devices[device.device_network_id] = true
+  end
+
+  discover.discover(10, function(cam_meta)
+    local urn = cam_meta.urn or cam_meta.ip or ("unknown_" .. os.time())
+    if not known_devices[urn] and not newly_added[urn] then
+      log.info("🆕 New device found: " .. urn)
+
+      local profile = config.DEFAULT_PROFILES[cam_meta.profile_hint or "standard"]
+
+      local metadata = {
+        type = "LAN",
+        device_network_id = urn,
+        label = cam_meta.label or "ONVIF Device",
+        profile = profile,
+        manufacturer = cam_meta.vendname or "Reolink",
+        model = cam_meta.hardware or cam_meta.label or "Unknown",
+        vendor_provided_label = cam_meta.label
+      }
+
+      newly_added[urn] = cam_meta
+
+      devcreate_sem:acquire(function()
+        local success, err = pcall(function()
+          driver:try_create_device(metadata)
         end)
-    end,
-    lifecycle_handlers = {
-        init = function(driver, device)
-            log.info("Initializing device: " .. device.label)
-            emit_video_stream(device)
-        end,
-        added = function(driver, device)
-            log.info("Device added: " .. device.label .. " (ID: " .. device.id .. ")")
-            emit_video_stream(device)
-        end,
-        doConfigure = function(driver, device)
-            log.info("Configuring device: " .. device.label)
-            device:online()
-            emit_video_stream(device)
-        end,
-        infoChanged = function(driver, device)
-            log.info("Device info changed for " .. device.label)
-            emit_video_stream(device)
+        if success then
+          log.info("✅ Provisional device creation submitted for: " .. metadata.label)
+        else
+          log.error("❌ Device creation failed: " .. tostring(err))
         end
-    },
-    capability_handlers = {
-        [capabilities.videoCapture.ID] = {
-            ["start"] = function(driver, device, command)
-                log.info("Video capture start requested for " .. device.label)
-            end,
-            ["stop"] = function(driver, device, command)
-                log.info("Video capture stop requested for " .. device.label)
-            end
-        },
-        [capabilities.videoStream.ID] = {
-            ["startStream"] = function(driver, device, command)
-                log.info("Video stream start requested for " .. device.label)
-                emit_video_stream(device)
-            end,
-            ["stopStream"] = function(driver, device, command)
-                log.info("Video stream stop requested for " .. device.label)
-                -- No state change needed; app manages visibility
-            end
-        },
-        [capabilities.refresh.ID] = {
-            ["refresh"] = function(driver, device, command)
-                log.info("Refresh requested for " .. device.label)
-                emit_video_stream(device)
-            end
-        }
-    }
+      end)
+    end
+  end)
+end
+
+-- Device Added
+local function device_added(driver, device)
+  local urn = device.device_network_id
+  local cam_meta = newly_added[urn]
+
+  if cam_meta then
+    log.info("💾 Hydrating discovery metadata for device: " .. urn)
+    device:set_field("onvif_disco", cam_meta, { persist = true })
+    newly_added[urn] = nil
+  else
+    log.warn("⚠️ No discovery metadata found for: " .. urn)
+  end
+
+  device:emit_event(capabilities.motionSensor.motion("inactive"))
+  device:emit_event(capabilities.refresh.refresh())
+  device:emit_component_event(device.profile.components.info, capabilities["partyvoice23922.onvifstatus"].status("Not configured"))
+  devcreate_sem:release()
+end
+
+-- Device Removed
+local function device_removed(driver, device)
+  log.info("🗑️ Device removed: " .. device.label)
+  device:set_field("onvif_subscribed", false)
+end
+
+-- Driver Definition
+local onvif_driver = Driver("Reolink ONVIF Enhanced", {
+  discovery = discovery_handler,
+  lifecycle_handlers = {
+    init = init_device,
+    added = device_added,
+    infoChanged = event_handlers.info_changed,
+    removed = device_removed
+  },
+  capability_handlers = capability_handlers
 })
 
--- Run the driver
+log.info("🚀 Reolink ONVIF Driver loaded")
 onvif_driver:run()
-
--- Export Handlers
-return {
-    handle_motion_event = handle_motion_event,
-    handle_linecross_event = handle_linecross_event,
-    handle_tamper_event = handle_tamper_event,
-    handle_visitor_event = handle_visitor_event,
-    send_audio_output_ffmpeg = send_audio_output_ffmpeg
-}

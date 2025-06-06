@@ -1,0 +1,108 @@
+presentationId: snapshot-tile-device-config
+manufacturerName: SmartThingsCommunity
+type: profile
+
+dashboard:
+  states:
+    - component: main
+      capability: pianodream12480.onvifStatus
+      version: 1
+    - component: doorbellComponent
+      capability: pianodream12480.doorbell
+      version: 1
+    - component: motionComponent
+      capability: pianodream12480.motionevents2
+      version: 1
+    - component: main
+      capability: cameraRecording
+      version: 1  # ← NEW: Show recording state on tile
+  actions:
+    - component: main
+      capability: refresh
+      version: 1
+    - component: audioComponent
+      capability: pianodream12480.twoWayAudio
+      version: 1
+    - component: trackMixComponent
+      capability: pianodream12480.customPtzControl
+      version: 1
+
+detailView:
+  - component: main
+    capability: videoStream
+    version: 1
+  - component: main
+    capability: pianodream12480.onvifInfo
+    version: 1
+  - component: main
+    capability: refresh
+    version: 1
+  - component: audioComponent
+    capability: pianodream12480.twoWayAudio
+    version: 1
+  - component: audioComponent
+    capability: pianodream12480.audioOutput
+    version: 1
+  - component: trackMixComponent
+    capability: pianodream12480.customPtzControl
+    version: 1
+  - component: chimeComponent
+    capability: pianodream12480.customChimeControl
+    version: 1
+  - component: lineComponent
+    capability: pianodream12480.linecross
+    version: 1
+  - component: tamperComponent
+    capability: tamperAlert
+    version: 1
+  - component: main
+    capability: cameraRecording
+    version: 1
+    label: "Recording"
+    displayType: state
+    state:
+      label: "{{recording.value}}"
+      alternatives:
+        - key: active
+          value: "Recording"
+          type: active
+        - key: inactive
+          value: "Not Recording"
+          type: inactive
+
+automation:
+  conditions:
+    - component: doorbellComponent
+      capability: pianodream12480.doorbell
+      version: 1
+    - component: motionComponent
+      capability: pianodream12480.motionevents2
+      version: 1
+    - component: lineComponent
+      capability: pianodream12480.linecross
+      version: 1
+    - component: tamperComponent
+      capability: tamperAlert
+      version: 1
+    - component: main
+      capability: cameraRecording
+      version: 1  # ← NEW: Add as automation trigger
+  actions:
+    - component: audioComponent
+      capability: pianodream12480.twoWayAudio
+      version: 1
+    - component: chimeComponent
+      capability: pianodream12480.customChimeControl
+      version: 1
+    - component: trackMixComponent
+      capability: pianodream12480.customPtzControl
+      version: 1
+    - component: main
+      capability: refresh
+      version: 1
+
+metadata:
+  vid: 3d321b3e-413a-3523-8cee-85e971753500
+  mnmn: SmartThingsCommunity
+  deviceType: Camera
+  ocfDeviceType: oic.d.camera

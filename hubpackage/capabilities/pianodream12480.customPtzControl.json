@@ -1,0 +1,14 @@
+{
+  "id": "pianodream12480.customPtzControl",
+  "version": 1,
+  "status": "proposed",
+  "name": "Custom PTZ Control",
+  "attributes": {},
+  "commands": {
+    "left": {},
+    "right": {},
+    "up": {},
+    "down": {}
+  },
+  "capabilityType": "custom"
+}

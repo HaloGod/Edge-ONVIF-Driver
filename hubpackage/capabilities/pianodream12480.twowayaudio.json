@@ -1,33 +1,17 @@
 {
-  "id": "pianodream12480.twowayaudio",
-  "version": 1,
-  "status": "proposed",
-  "name": "Two Way Audio",
+  "id": "pianodream12480.twoWayAudio",
+  "version": 2,
   "attributes": {
-    "audioStatus": {
+    "twoWayAudio": {
       "schema": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "type": "string",
-            "enum": ["active", "inactive"]
-          }
-        },
-        "additionalProperties": false,
-        "required": ["value"]
-      },
-      "setter": null,
-      "enumCommands": []
+        "type": "string",
+        "enum": ["on", "off"]
+      }
     }
   },
   "commands": {
-    "startAudio": {
-      "name": "startAudio",
-      "arguments": []
-    },
-    "stopAudio": {
-      "name": "stopAudio",
-      "arguments": []
-    }
-  }
+    "on": {},
+    "off": {}
+  },
+  "capabilityType": "custom"
 }

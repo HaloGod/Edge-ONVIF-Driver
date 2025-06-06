@@ -1,235 +1,145 @@
---[[
-  Copyright 2022 Todd Austin, adapted 2025 for SmartThings Edge driver
-  Licensed under the Apache License, Version 2.0 (the "License");
-  http://www.apache.org/licenses/LICENSE-2.0
-
-  Modifications based on findings:
-  - ONVIF service for Reolink doorbell (10.0.0.72) is at http://10.0.0.72:8000/onvif/device_service (port 8000 from multicast).
-  - TrackMix at 10.0.0.102 added with direct probe, assumed port 8000 (to be confirmed).
-  - NVR at 10.0.0.67 detected via multicast, port 8000.
-  - Requires Digest Auth (admin:Doggies44) for 10.0.0.72; applying as default for all devices.
-  - Direct probe timed out previously, increased timeout to 10s.
-  - RTSP fallback for 10.0.0.72: rtsp://admin:Doggies44@10.0.0.72/h264Preview_01_main (port 554).
-  - Multicast detected 10.0.0.58, 10.0.0.67, 10.0.0.72 successfully.
-  - Added default credentials (admin:Doggies44) to all discovered devices.
---]]
+-- discover.lua (Enhanced Discovery with Fallback & Classification)
 
 local cosock = require "cosock"
 local socket = require "cosock.socket"
-local http = require "socket.http"
-local ltn12 = require "ltn12"
+local socket_utils = require "socket.url"
 local log = require "log"
+local config = require "config"
 local common = require "common"
-local uuid = require "uuid"
+local json = require "dkjson"
+local auth = require "auth"
 
-local multicast_ip = "239.255.255.250"
-local multicast_port = 3702
-local listen_ip = "0.0.0.0"
-local listen_port = 0
+local M = {}
 
-local discovered_urns = {}
-
--- Default credentials applied to all devices
-local DEFAULT_USERNAME = "admin"
-local DEFAULT_PASSWORD = "Doggies44"
-
-local discover_1 = [[<?xml version="1.0" encoding="UTF-8"?>
-<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://schemas.xmlsoap.org/ws/2004/08/addressing">
-  <s:Header>
-    <a:Action s:mustUnderstand="1">http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</a:Action>
-    <a:ReplyTo><a:Address>http://schemas.xmlsoap.org/ws/2004/08/addressing/role/anonymous</a:Address></a:ReplyTo>
-    <a:To s:mustUnderstand="1">urn:schemas-xmlsoap-org:ws:2005:04:discovery</a:To>
-  </s:Header>
-  <s:Body>
-    <Probe xmlns="http://schemas.xmlsoap.org/ws/2005/04/discovery">
-      <d:Types xmlns:d="http://schemas.xmlsoap.org/ws/2005/04/discovery" xmlns:dp0="http://www.onvif.org/ver10/network/wsdl" xmlns:tns1="http://www.onvif.org/ver10/topics">]]
-local discover_2 = [[</d:Types>
-    </Probe>
-  </s:Body>
-</s:Envelope>]]
-
-local function build_probe(probetype)
-    local probe = discover_1 .. probetype .. discover_2
-    local msgid = '<a:MessageID>uuid:' .. uuid() .. '</a:MessageID>\n'
-    probe = common.add_XML_header(probe, msgid)
-    return common.compact_XML(probe)
+local function parse_scopes(scope_str)
+  local scopes = {}
+  for match in scope_str:gmatch("onvif://www.onvif.org/[^%s]+") do
+    table.insert(scopes, match)
+  end
+  return scopes
 end
 
-local function parse(data)
-    local metadata = {}
-    log.debug("Raw response data: " .. data)
-    
-    local parsed_xml = common.xml_to_table(data)
-    if not parsed_xml then
-        log.error("Failed to parse XML response")
-        return nil
-    end
-
-    -- ... (XML parsing logic unchanged) ...
-
-    local xaddrs = probe_match['XAddrs'] or probe_match['d:XAddrs']
-    if xaddrs then
-        for addr in xaddrs:gmatch('[^ ]+') do
-            local ip, port = addr:match('^(http://)([%d%.]+):?(%d*)/')
-            if ip then
-                metadata.uri = addr
-                metadata.ip = ip:gsub('http://', '')
-                metadata.port = port or "80"
-                break
-            end
-        end
-        if not metadata.uri then
-            log.error("No valid service URI found in XAddrs: " .. xaddrs)
-            return nil
-        end
-    else
-        log.warn("Missing XAddrs in response; ignored")
-        return nil
-    end
-
-    -- ... (scopes and endpoint parsing unchanged) ...
-
-    -- SmartThings-specific fields with default credentials
-    metadata.device_network_id = metadata.ip .. ":" .. metadata.port
-    metadata.label = metadata.hardware ~= '' and metadata.hardware or "ONVIF Camera " .. metadata.ip
-    metadata.manufacturer = metadata.vendname ~= '' and metadata.vendname or "Reolink"
-    metadata.username = DEFAULT_USERNAME
-    metadata.password = DEFAULT_PASSWORD
-    metadata.rtsp_url = "rtsp://" .. DEFAULT_USERNAME .. ":" .. DEFAULT_PASSWORD .. "@" .. metadata.ip .. "/h264Preview_01_main"
-
-    return metadata
+local function send_multicast_probe(sock, probe_types)
+  local probe_msg = [[
+    <e:Envelope xmlns:e="http://www.w3.org/2003/05/soap-envelope"
+                xmlns:w="http://schemas.xmlsoap.org/ws/2004/08/addressing"
+                xmlns:d="http://schemas.xmlsoap.org/ws/2005/04/discovery"
+                xmlns:dn="http://www.onvif.org/ver10/network/wsdl">
+      <e:Header>
+        <w:MessageID>uuid:]] .. os.time() .. [[</w:MessageID>
+        <w:To>urn:schemas-xmlsoap-org:ws:2005:04:discovery</w:To>
+        <w:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</w:Action>
+      </e:Header>
+      <e:Body>
+        <d:Probe>
+          <d:Types>]] .. table.concat(probe_types, " ") .. [[</d:Types>
+        </d:Probe>
+      </e:Body>
+    </e:Envelope>
+  ]]
+  sock:sendto(probe_msg, "239.255.255.250", 3702)
 end
 
-local function direct_probe(ip, port, callback)
-    local url = "http://" .. ip .. ":" .. port .. "/onvif/device_service"
-    local probe = build_probe("dp0:Device")
-    local response_body = {}
-    http.TIMEOUT = 10
-    local res, code, headers = http.request {
-        url = url,
-        method = "POST",
-        headers = {
-            ["Content-Type"] = "application/soap+xml",
-            ["Content-Length"] = tostring(#probe)
-        },
-        source = ltn12.source.string(probe),
-        sink = ltn12.sink.table(response_body),
-        user = DEFAULT_USERNAME,
-        password = DEFAULT_PASSWORD,
-        authentication = "digest"
+-- Attempt to classify and enrich metadata using HTTP API fallback
+local function enrich_with_http_api(meta)
+  local ip = meta.ip
+  local token = auth.get_token({ preferences = {
+  ipAddress = ip,
+  userid = "admin",
+  password = "Doggies44"
+    }})
+  if not token then return end
+  local url = string.format("http://%s/api.cgi?cmd=GetDevInfo&token=%s", ip, token)
+  local http = cosock.asyncify("socket.http")
+  local resp = {}
+  local _, code = http.request {
+    method = "POST",
+    url = url,
+    headers = {
+      ["Content-Type"] = "application/json",
+      ["Content-Length"] = tostring(#'[{"cmd":"GetDevInfo"}]')
+    },
+    source = require("ltn12").source.string('[{"cmd":"GetDevInfo"}]'),
+    sink = require("ltn12").sink.table(resp)
+  }
+
+  if code ~= 200 then
+    log.warn("⚠️ Fallback GetDevInfo failed for " .. ip)
+    return
+  end
+
+  local parsed = json.decode(table.concat(resp))
+  if parsed and parsed[1] and parsed[1].value and parsed[1].value.DevInfo then
+    local dev = parsed[1].value.DevInfo
+    meta.label = dev.model or meta.label
+    meta.serial = dev.serial or meta.serial
+    meta.profile_hint = dev.exactType == "NVR" and "nvr"
+                      or (dev.exactType == "IPC" and "ptz")
+                      or (dev.exactType == "BELL" and "doorbell")
+                      or "standard"
+  end
+end
+
+function M.discover(timeout, callback)
+  local probe_types = { "dn:NetworkVideoTransmitter" }
+  local ip_list = config.STATIC_IP_LIST or {}
+  local sock = socket.udp()
+  sock:setsockname("*", 0)
+  sock:setoption("reuseaddr", true)
+  pcall(function() sock:setoption("reuseport", true) end)
+  sock:settimeout(0)
+
+  send_multicast_probe(sock, probe_types)
+
+  for _, ip in ipairs(ip_list) do
+    local fallback_meta = {
+      ip = ip,
+      urn = "Manual_" .. os.time(),
+      label = "Manual ONVIF Device",
+      uri = { device_service = "http://" .. ip .. "/onvif/device_service" },
+      scopes = {},
+      profiles = {},
+      discotype = "manual"
     }
+    enrich_with_http_api(fallback_meta)
+    callback(fallback_meta)
+  end
 
-    if res and code == 200 then
-        local data = table.concat(response_body)
-        log.debug("Direct ONVIF response from " .. ip .. ": " .. data)
-        local cam_meta = parse(data)
-        if cam_meta then
-            cam_meta.ip = ip
-            cam_meta.port = port
-            cam_meta.addr = ip .. ":" .. port
-            cam_meta.rtsp_url = "rtsp://" .. DEFAULT_USERNAME .. ":" .. DEFAULT_PASSWORD .. "@" .. ip .. "/h264Preview_01_main"  -- Ensure RTSP URL is set
-            log.info("Device discovered at " .. cam_meta.addr .. " via direct probe")
-            log.debug("Calling callback with metadata: ip=" .. cam_meta.ip .. ", label=" .. cam_meta.label)
-            callback(cam_meta)
-        end
-    else
-        log.warn("Direct probe to " .. ip .. " failed: " .. (code or "unknown"))
-        local cam_meta = {
-            ip = ip,
-            port = "554",
-            addr = ip .. ":554",
-            rtsp_url = "rtsp://" .. DEFAULT_USERNAME .. ":" .. DEFAULT_PASSWORD .. "@" .. ip .. "/h264Preview_01_main",
-            device_network_id = ip .. ":554",
-            label = "Reolink Device (RTSP) " .. ip,
-            manufacturer = "Reolink",
-            username = DEFAULT_USERNAME,
-            password = DEFAULT_PASSWORD
+  log.debug(string.format("Starting multicast discovery listen loop with timeout: %d seconds", timeout))
+  local start_time = socket.gettime()
+
+  while socket.gettime() - start_time < timeout do
+    local ok, data, ip, port = pcall(function() return sock:receivefrom() end)
+    if ok and data then
+      log.debug("Received raw multicast data from " .. ip)
+      local parsed_xml = common.xml_to_table(data)
+      parsed_xml = common.strip_xmlns(parsed_xml)
+
+      local info = parsed_xml["Envelope"] and parsed_xml["Envelope"]["Body"]
+      if info and info["GetDeviceInformationResponse"] then
+        local dev = info["GetDeviceInformationResponse"]
+        local meta = {
+          ip = ip,
+          urn = dev.SerialNumber or ("Auto_" .. os.time()),
+          label = dev.Model or "ONVIF Device",
+          vendname = dev.Manufacturer,
+          hardware = dev.HardwareId,
+          uri = {
+            device_service = "http://" .. ip .. "/onvif/device_service"
+          },
+          scopes = parse_scopes(data),
+          profiles = {},
+          discotype = "auto"
         }
-        log.info("Falling back to RTSP for " .. ip)
-        log.debug("Calling callback with RTSP fallback: ip=" .. cam_meta.ip .. ", label=" .. cam_meta.label)
-        callback(cam_meta)
+        enrich_with_http_api(meta)
+        callback(meta)
+      else
+        log.warn("⚠️ XML response missing expected fields from " .. ip)
+      end
+    else
+      socket.sleep(0.1)
     end
+  end
 end
 
-local function multicast_discover(waitsecs, callback)
-    local s, err = socket.udp()
-    if not s then
-        log.error("Failed to create UDP socket: " .. (err or "unknown error"))
-        return
-    end
-    
-    local ok, bind_err = s:setsockname(listen_ip, listen_port)
-    if not ok then
-        log.error("Failed to bind socket: " .. (bind_err or "unknown error"))
-        s:close()
-        return
-    end
-
-    local probes = {
-        'dp0:NetworkVideoTransmitter',
-        'dp0:Device',
-        'tns1:Device',
-        'tns1:Door',
-        'tns1:VideoDoor',
-        'dp0:NetworkVideoDoor'
-    }
-    
-    for _, probetype in ipairs(probes) do
-        log.debug("Sending multicast probe: " .. probetype)
-        local ok, send_err = s:sendto(build_probe(probetype), multicast_ip, multicast_port)
-        if not ok then
-            log.warn("Failed to send probe " .. probetype .. ": " .. (send_err or "unknown error"))
-        end
-        cosock.socket.sleep(0.2)
-    end
-
-    local timeouttime = socket.gettime() + waitsecs
-
-    cosock.spawn(function()
-        log.debug("Starting multicast discovery listen loop with timeout: " .. waitsecs .. " seconds")
-        while true do
-            local time_remaining = math.max(0, timeouttime - socket.gettime())
-            s:settimeout(time_remaining)
-
-            local data, rip, rport = s:receivefrom()
-            if data then
-                log.debug("Multicast response from: " .. rip .. ":" .. rport)
-                local cam_meta = parse(data)
-                if cam_meta then
-                    cam_meta.ip = rip
-                    cam_meta.addr = rip .. ':' .. cam_meta.port
-                    log.debug("Valid device found at " .. cam_meta.addr .. " with URI: " .. cam_meta.uri)
-                    log.debug("Calling callback with metadata: ip=" .. cam_meta.ip .. ", label=" .. cam_meta.label)
-                    callback(cam_meta)
-                end
-            elseif rip == "timeout" then
-                log.debug("Multicast discovery timeout reached")
-                break
-            else
-                log.error("Socket error: " .. (rip or "unknown"))
-            end
-        end
-        s:close()
-        log.debug("Multicast discovery socket closed")
-        discovered_urns = {}
-    end, "multicast_discovery_task")
-end
-
-local function discover(waitsecs, callback)
-    -- Direct probe for Reolink doorbell at 10.0.0.72
-    cosock.spawn(function()
-        direct_probe("10.0.0.72", "8000", callback)
-    end, "direct_probe_doorbell_task")
-
-    -- Direct probe for TrackMix at 10.0.0.102
-    cosock.spawn(function()
-        direct_probe("10.0.0.102", "8000", callback)
-    end, "direct_probe_trackmix_task")
-
-    -- Multicast for other devices (e.g., 10.0.0.58, 10.0.0.67 NVR)
-    multicast_discover(waitsecs, callback)
-end
-
-return {
-    discover = discover
-}
+return M

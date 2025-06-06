@@ -9,4 +9,4 @@ permissions:
 driver:
   main: "src/init.lua"  # Explicitly points to init.lua in hubpackage/src/
 profiles:
-  - "profiles/onvifcam_v4.yaml"  # Links your profile
+  - "profiles/snapshot-tile-profile.yaml"  # Links your profile

@@ -1,0 +1,40 @@
+{
+    "values": {
+        "ipAddress": {
+            "preferenceType": "string",
+            "value": "10.0.0.72"
+        },
+        "port": {
+            "preferenceType": "integer",
+            "value": 8000
+        },
+        "userid": {
+            "preferenceType": "string",
+            "value": "admin"
+        },
+        "password": {
+            "preferenceType": "string",
+            "value": "Doggies44"
+        },
+        "stream": {
+            "preferenceType": "string",
+            "value": "mainstream"
+        },
+        "enableTwoWayAudio": {
+            "preferenceType": "boolean",
+            "value": false
+        },
+        "audioFilePath": {
+            "preferenceType": "string",
+            "value": "/default/audio.wav"
+        },
+        "quickReply": {
+            "preferenceType": "string",
+            "value": "Please wait"
+        },
+        "nvrIp": {
+            "preferenceType": "string",
+            "value": "10.0.0.67"
+        }
+    }
+}

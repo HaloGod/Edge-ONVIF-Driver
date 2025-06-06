@@ -1,0 +1,18 @@
+{
+  "dashboard": {
+    "states": [
+      {
+        "component": "main",
+        "capability": "pianodream12480.doorbell",
+        "version": 1,
+        "values": [
+          { "key": "button:pressed", "label": "Doorbell Pressed" }
+        ]
+      }
+    ],
+    "actions": []
+  },
+  "detailView": [],
+  "id": "pianodream12480.doorbell",
+  "version": 1
+}

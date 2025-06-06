@@ -1,0 +1,136 @@
+manufacturerName: SmartThingsCommunity
+type: profile
+
+dashboard:
+  states:
+    - component: main
+      capability: videoStream
+      version: 1
+    - component: main
+      capability: cameraRecording
+      version: 1
+  actions: []
+  basicPlus: []
+
+detailView:
+  - component: main
+    capability: videoStream
+    version: 1
+    label: Camera Stream
+    displayType: videoStream
+    videoStream:
+      stream: stream.uri
+      snapshot: snapshot.uri
+  - component: main
+    capability: pianodream12480.doorbell
+    version: 1
+    label: Doorbell
+    displayType: state
+    state:
+      label: '{{button.value}}'
+      alternatives:
+        - key: pressed
+          value: Doorbell Pressed
+          type: active
+        - key: released
+          value: Doorbell Idle
+          type: inactive
+  - component: main
+    capability: pianodream12480.onvifStatus
+    version: 1
+    label: ONVIF Status
+    displayType: state
+    state:
+      label: '{{status.value}}'
+      alternatives:
+        - key: connected
+          value: Connected
+          type: active
+        - key: error
+          value: Error
+          type: inactive
+  - component: main
+    capability: refresh
+    version: 1
+    label: Refresh
+    displayType: pushButton
+    pushButton:
+      command: refresh
+  - component: main
+    capability: cameraRecording
+    version: 1
+    label: Recording
+    displayType: state
+    state:
+      label: '{{recording.value}}'
+      alternatives:
+        - key: active
+          value: Recording
+          type: active
+        - key: inactive
+          value: Not Recording
+          type: inactive
+
+automation:
+  conditions:
+    - component: main
+      capability: videoStream
+      version: 1
+      label: Streaming Status
+      displayType: list
+      list:
+        alternatives:
+          - key: active
+            value: Streaming
+            type: active
+          - key: inactive
+            value: Offline
+            type: inactive
+    - component: main
+      capability: pianodream12480.doorbell
+      version: 1
+      label: Doorbell
+      displayType: list
+      list:
+        alternatives:
+          - key: pressed
+            value: Doorbell Pressed
+            type: active
+          - key: released
+            value: Doorbell Idle
+            type: inactive
+    - component: main
+      capability: cameraRecording
+      version: 1
+      label: Recording
+      displayType: list
+      list:
+        alternatives:
+          - key: active
+            value: Recording
+            type: active
+          - key: inactive
+            value: Not Recording
+            type: inactive
+  actions:
+    - component: main
+      capability: videoStream
+      version: 1
+      label: Start Stream
+      displayType: pushButton
+      pushButton:
+        command: startStream
+    - component: main
+      capability: videoStream
+      version: 1
+      label: Stop Stream
+      displayType: pushButton
+      pushButton:
+        command: stopStream
+    - component: main
+      capability: refresh
+      version: 1
+      label: Refresh
+      displayType: pushButton
+      pushButton:
+        command: refresh

@@ -1,0 +1,166 @@
+name: snapshot-tile-profile
+metadata:
+  deviceType: Camera
+  ocfDeviceType: oic.d.camera
+  vid: 03e65b8b-e7c2-3438-9bf5-77ef8ecc42cc #baf61390-c4cb-3c88-b101-195b632c91ed
+  mnmn: SmartThingsCommunity
+components:
+  - id: main
+    label: Main
+    capabilities:
+      - id: videoStream
+        version: 1
+      - id: pianodream12480.onvifStatus
+        version: 1
+      - id: refresh
+      - id: switch
+      - id: pianodream12480.onvifInfo
+        version: 1
+      - id: videoCapture
+        version: 1
+    categories:
+      - name: Camera  # Updated to match deviceType
+        version: 1
+  - id: motionComponent
+    label: Motion Events
+    capabilities:
+      - id: pianodream12480.motionevents2
+        version: 1
+  - id: lineComponent
+    label: Line Cross Events
+    capabilities:
+      - id: pianodream12480.linecross
+        version: 1
+  - id: tamperComponent
+    label: Tamper Events
+    capabilities:
+      - id: tamperAlert
+        version: 1
+  - id: doorbellComponent
+    label: Doorbell
+    capabilities:
+      - id: pianodream12480.doorbell
+        version: 1
+  - id: audioComponent
+    label: Audio Communication
+    capabilities:
+      - id: pianodream12480.twoWayAudio
+        version: 1
+      - id: pianodream12480.audioOutput
+        version: 1
+  - id: trackMixComponent
+    label: TrackMix Controls
+    capabilities:
+      - id: pianodream12480.customPtzControl
+        version: 1
+  - id: chimeComponent
+    label: Chime
+    capabilities:
+      - id: pianodream12480.customChimeControl
+        version: 1
+preferences:
+  - name: ipAddress
+    title: Camera IP Address
+    description: Enter the IP address of the camera
+    required: true
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 7
+      maxLength: 15
+      default: "192.168.1.100"
+  - name: port
+    title: Camera Port
+    description: Enter the port number of the camera
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 1
+      maximum: 65535
+      default: 80
+  - name: userid
+    title: Camera Username
+    description: Enter the username for camera authentication
+    required: true
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 1
+      maxLength: 50
+      default: "admin"
+  - name: password
+    title: Camera Password
+    description: Enter the password for camera authentication (avoid special characters like @, &, etc.)
+    required: true
+    preferenceType: string
+    definition:
+      stringType: password
+      minLength: 1
+      maxLength: 50
+      default: "password"
+  - name: stream
+    title: Stream Type
+    description: Select the stream type (mainstream or substream)
+    required: false
+    preferenceType: enumeration
+    definition:
+      options:
+        mainstream: "Main Stream"
+        substream: "Sub Stream"
+      default: "mainstream"
+  - name: enableTwoWayAudio
+    title: Enable Two-Way Audio
+    description: Enable two-way audio if supported
+    required: false
+    preferenceType: boolean
+    definition:
+      default: false
+  - name: audioFilePath
+    title: Audio File Path
+    description: Path to audio file for quick reply
+    required: false
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 1
+      maxLength: 100
+      default: "/default/audio.wav"
+  - name: quickReply
+    title: Quick Reply Message
+    description: Message to play when doorbell is pressed
+    required: false
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 1
+      maxLength: 50
+      default: "Please wait."
+  - name: nvrIp
+    title: NVR IP Address
+    description: Enter the IP address of the NVR (optional)
+    required: false
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 0
+      maxLength: 15
+      default: ""
+  - name: rtspPath
+    title: RTSP Stream Path
+    description: Enter the RTSP stream path (e.g., h264Preview_01_main)
+    required: true
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 1
+      maxLength: 50
+      default: "h264Preview_01_main"
+  - name: rtspPort
+    title: RTSP Port
+    description: Enter the RTSP port number of the camera
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 1
+      maximum: 65535
+      default: 554

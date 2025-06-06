@@ -1,27 +1,23 @@
-name: ONVIF-Doorbell
+name: snapshot-tile-profile-v2
 metadata:
   deviceType: Camera
-  ocfDeviceType: oic.d.camera  # Changed to standard OCF camera type
-  vid: onvifcam_v5
-  mnmn: SmartThings
+  ocfDeviceType: oic.d.camera
+  vid: 03e65b8b-e7c2-3438-9bf5-77ef8ecc42cc #baf61390-c4cb-3c88-b101-195b632c91ed
+  mnmn: SmartThingsCommunity
 components:
   - id: main
     label: Main
     capabilities:
-      - id: switch
-      - id: refresh
-      - id: pianodream12480.onvifStatus
-        version: 1
-      - id: pianodream12480.onvifInfo
-        version: 1
-      - id: pianodream12480.refresh
-        version: 1
       - id: videoStream
         version: 1
-      - id: videoCapture  # Added for full camera recognition
+      - id: pianodream12480.onvifStatus
+        version: 1
+      - id: refresh
+      - id: switch
+      - id: pianodream12480.onvifInfo
         version: 1
     categories:
-      - name: Camera
+      - name: Camera  # Updated to match deviceType
         version: 1
   - id: motionComponent
     label: Motion Events
@@ -92,7 +88,7 @@ preferences:
       default: "admin"
   - name: password
     title: Camera Password
-    description: Enter the password for camera authentication
+    description: Enter the password for camera authentication (avoid special characters like @, &, etc.)
     required: true
     preferenceType: string
     definition:
@@ -147,3 +143,22 @@ preferences:
       minLength: 0
       maxLength: 15
       default: ""
+  - name: rtspPath
+    title: RTSP Stream Path
+    description: Enter the RTSP stream path (e.g., h264Preview_01_main)
+    required: true
+    preferenceType: string
+    definition:
+      stringType: text
+      minLength: 1
+      maxLength: 50
+      default: "h264Preview_01_main"
+  - name: rtspPort
+    title: RTSP Port
+    description: Enter the RTSP port number of the camera
+    required: false
+    preferenceType: integer
+    definition:
+      minimum: 1
+      maximum: 65535
+      default: 554

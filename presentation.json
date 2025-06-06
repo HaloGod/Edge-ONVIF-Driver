@@ -3,42 +3,105 @@
         "states": [
             {
                 "component": "main",
-                "capability": "switch",
-                "version": 1,
-                "values": []
-            }
-        ],
-        "actions": [
+                "capability": "videoStream",
+                "version": 1
+            },
             {
                 "component": "main",
-                "capability": "switch",
-                "version": 1,
-                "inline": null
+                "capability": "cameraRecording",
+                "version": 1
             }
         ],
+        "actions": [],
         "basicPlus": []
     },
     "detailView": [
         {
             "component": "main",
-            "capability": "switch",
+            "capability": "videoStream",
             "version": 1,
-            "values": [],
-            "patch": []
+            "label": "Camera Stream",
+            "displayType": "videoStream",
+            "videoStream": {
+                "stream": "stream.uri",
+                "snapshot": "snapshot.uri"
+            }
         },
         {
-            "component": "main",
-            "capability": "refresh",
+            "component": "doorbellComponent",
+            "capability": "pianodream12480.doorbell",
             "version": 1,
-            "values": [],
-            "patch": []
+            "label": "Doorbell",
+            "displayType": "state",
+            "state": {
+                "label": "{{button.value}}",
+                "alternatives": [
+                    {
+                        "key": "pressed",
+                        "value": "Doorbell Pressed",
+                        "type": "active"
+                    },
+                    {
+                        "key": "released",
+                        "value": "Doorbell Idle",
+                        "type": "inactive"
+                    }
+                ]
+            }
         },
         {
             "component": "main",
             "capability": "pianodream12480.onvifStatus",
             "version": 1,
-            "values": [],
-            "patch": []
+            "label": "ONVIF Status",
+            "displayType": "state",
+            "state": {
+                "label": "{{status.value}}",
+                "alternatives": [
+                    {
+                        "key": "connected",
+                        "value": "Connected",
+                        "type": "active"
+                    },
+                    {
+                        "key": "error",
+                        "value": "Error",
+                        "type": "inactive"
+                    }
+                ]
+            }
+        },
+        {
+            "component": "main",
+            "capability": "refresh",
+            "version": 1,
+            "label": "Refresh",
+            "displayType": "pushButton",
+            "pushButton": {
+                "command": "refresh"
+            }
+        },
+        {
+            "component": "main",
+            "capability": "cameraRecording",
+            "version": 1,
+            "label": "Recording",
+            "displayType": "state",
+            "state": {
+                "label": "{{recording.value}}",
+                "alternatives": [
+                    {
+                        "key": "active",
+                        "value": "Recording",
+                        "type": "active"
+                    },
+                    {
+                        "key": "inactive",
+                        "value": "Not Recording",
+                        "type": "inactive"
+                    }
+                ]
+            }
         },
         {
             "component": "main",
@@ -50,13 +113,6 @@
         {
             "component": "main",
             "capability": "pianodream12480.refresh",
-            "version": 1,
-            "values": [],
-            "patch": []
-        },
-        {
-            "component": "main",
-            "capability": "videoStream",
             "version": 1,
             "values": [],
             "patch": []
@@ -118,13 +174,6 @@
             "patch": []
         },
         {
-            "component": "doorbellComponent",
-            "capability": "pianodream12480.doorbell",
-            "version": 1,
-            "values": [],
-            "patch": []
-        },
-        {
             "component": "audioComponent",
             "capability": "pianodream12480.twoWayAudio",
             "version": 1,
@@ -171,253 +220,98 @@
         "conditions": [
             {
                 "component": "main",
-                "capability": "switch",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "main",
-                "capability": "pianodream12480.onvifStatus",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "main",
-                "capability": "pianodream12480.onvifInfo",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "main",
                 "capability": "videoStream",
                 "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "main",
-                "capability": "videoCapture",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "main",
-                "capability": "audioVolume",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "motionComponent",
-                "capability": "motionSensor",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "motionComponent",
-                "capability": "pianodream12480.motionevents2",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "lineComponent",
-                "capability": "pianodream12480.linecross",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "tamperComponent",
-                "capability": "tamperAlert",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "doorbellComponent",
-                "capability": "button",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
+                "label": "Streaming Status",
+                "displayType": "list",
+                "list": {
+                    "alternatives": [
+                        {
+                            "key": "active",
+                            "value": "Streaming",
+                            "type": "active"
+                        },
+                        {
+                            "key": "inactive",
+                            "value": "Offline",
+                            "type": "inactive"
+                        }
+                    ]
+                }
             },
             {
                 "component": "doorbellComponent",
                 "capability": "pianodream12480.doorbell",
                 "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
+                "label": "Doorbell",
+                "displayType": "list",
+                "list": {
+                    "alternatives": [
+                        {
+                            "key": "pressed",
+                            "value": "Doorbell Pressed",
+                            "type": "active"
+                        },
+                        {
+                            "key": "released",
+                            "value": "Doorbell Idle",
+                            "type": "inactive"
+                        }
+                    ]
+                }
             },
             {
-                "component": "audioComponent",
-                "capability": "pianodream12480.twoWayAudio",
+                "component": "main",
+                "capability": "cameraRecording",
                 "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "audioComponent",
-                "capability": "pianodream12480.audioOutput",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "trackMixComponent",
-                "capability": "pianodream12480.customPtzControl",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "chimeComponent",
-                "capability": "chime",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "chimeComponent",
-                "capability": "pianodream12480.customChimeControl",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
+                "label": "Recording",
+                "displayType": "list",
+                "list": {
+                    "alternatives": [
+                        {
+                            "key": "active",
+                            "value": "Recording",
+                            "type": "active"
+                        },
+                        {
+                            "key": "inactive",
+                            "value": "Not Recording",
+                            "type": "inactive"
+                        }
+                    ]
+                }
             }
         ],
         "actions": [
             {
                 "component": "main",
-                "capability": "switch",
+                "capability": "videoStream",
                 "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "main",
-                "capability": "refresh",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "main",
-                "capability": "pianodream12480.refresh",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
+                "label": "Start Stream",
+                "displayType": "pushButton",
+                "pushButton": {
+                    "command": "startStream"
+                }
             },
             {
                 "component": "main",
                 "capability": "videoStream",
                 "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
+                "label": "Stop Stream",
+                "displayType": "pushButton",
+                "pushButton": {
+                    "command": "stopStream"
+                }
             },
             {
                 "component": "main",
-                "capability": "videoCapture",
+                "capability": "refresh",
                 "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "main",
-                "capability": "audioVolume",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "main",
-                "capability": "notification",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "motionComponent",
-                "capability": "pianodream12480.motionevents2",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "audioComponent",
-                "capability": "pianodream12480.twoWayAudio",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "audioComponent",
-                "capability": "pianodream12480.audioOutput",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "audioComponent",
-                "capability": "audioNotification",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "trackMixComponent",
-                "capability": "pianodream12480.customPtzControl",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "chimeComponent",
-                "capability": "chime",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
-            },
-            {
-                "component": "chimeComponent",
-                "capability": "pianodream12480.customChimeControl",
-                "version": 1,
-                "values": [],
-                "patch": [],
-                "exclusion": []
+                "label": "Refresh",
+                "displayType": "pushButton",
+                "pushButton": {
+                    "command": "refresh"
+                }
             }
         ]
     },
@@ -444,7 +338,10 @@
             "displayType": "numberField",
             "numberField": {
                 "value": "port",
-                "range": [1, 65535],
+                "range": [
+                    1,
+                    65535
+                ],
                 "defaultValue": 80
             }
         },
@@ -567,7 +464,10 @@
             "displayType": "numberField",
             "numberField": {
                 "value": "rtspPort",
-                "range": [1, 65535],
+                "range": [
+                    1,
+                    65535
+                ],
                 "defaultValue": 554
             }
         }

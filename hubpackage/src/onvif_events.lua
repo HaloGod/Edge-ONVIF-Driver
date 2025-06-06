@@ -117,6 +117,18 @@ function M.pull_events_loop(device, event_service, event_callback)
                 log.info("🚨 Tamper Event on " .. device.label)
                 event_callback("TamperAlarm")
             end
+            if response:find("Person") then
+                log.info("🚨 Person Detection on " .. device.label)
+                event_callback("Person")
+            end
+            if response:find("Vehicle") then
+                log.info("🚨 Vehicle Detection on " .. device.label)
+                event_callback("Vehicle")
+            end
+            if response:find("Animal") or response:find("Pet") then
+                log.info("🚨 Animal Detection on " .. device.label)
+                event_callback("Animal")
+            end
         else
             local failures = (device:get_field("pull_failures") or 0) + 1
             device:set_field("pull_failures", failures)

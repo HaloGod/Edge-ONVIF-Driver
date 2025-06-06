@@ -9,13 +9,18 @@ local config = require "config"
 local capabilities = require "st.capabilities"
 local auth = require "auth"
 local json = require "dkjson"
+local onvif_events = require "onvif_events"
+local event_handlers = require "event_handlers"
 
 local M = {}
 
 ----------------------------------------------------
 -- STREAM URL GENERATION WITH NVR CHANNEL SUPPORT
 ----------------------------------------------------
-function M.get_stream_url(device)
+-- get_stream_url(device[, bypass_nvr])
+-- Returns an RTSP URL. When bypass_nvr is true the camera IP is used even if
+-- USENVRSTREAM is enabled.
+function M.get_stream_url(device, bypass_nvr)
   local username = device.preferences.username or config.DEFAULT_USER
   local password = device.preferences.password or config.DEFAULT_PASS
   local cam_ip = device.preferences.ipAddress
@@ -28,16 +33,16 @@ function M.get_stream_url(device)
     return string.format("rtsp://%s:%s@%s:554/h264Preview_%02d_%s", username, password, ip, ch, stream)
   end
 
-  -- Try NVR stream first
-  if config.USENVRSTREAM and config.NVR_IP then
+  -- Try NVR stream first unless direct access was requested
+  if not bypass_nvr and config.USENVRSTREAM and config.NVR_IP then
     local nvr_url = build_rtsp(config.NVR_IP, channel, "main")
     log.debug("📡 Using NVR stream URL: " .. nvr_url)
     return nvr_url
   end
 
-  -- Fallback to direct camera stream
+  -- Direct camera stream
   local direct_url = build_rtsp(cam_ip, 1, "main")
-  log.debug("📡 Fallback to camera stream URL: " .. direct_url)
+  log.debug("📡 Using camera stream URL: " .. direct_url)
   return direct_url
 end
 
@@ -67,10 +72,13 @@ end
 ----------------------------------------------------
 -- SNAPSHOT URL EMISSION WITH CACHE BUSTING TIMESTAMP
 ----------------------------------------------------
-function M.refresh_snapshot(device)
+-- refresh_snapshot(device[, bypass_nvr])
+-- Emit a JPEG snapshot event. When bypass_nvr is true the camera IP is used
+-- instead of the NVR.
+function M.refresh_snapshot(device, bypass_nvr)
   local username = device.preferences.username or config.DEFAULT_USER
   local password = device.preferences.password or config.DEFAULT_PASS
-  local ip = config.USENVRSTREAM and config.NVR_IP or device.preferences.ipAddress
+  local ip = (not bypass_nvr and config.USENVRSTREAM and config.NVR_IP) or device.preferences.ipAddress
   local channel = device:get_field("nvr_channel") or 0
   local now = os.time()
 
@@ -183,6 +191,17 @@ function M.smart_initialize(device)
 
   M.query_device_capabilities(device)
   M.update_recording_state(device)
+
+  -- Subscribe to ONVIF events for doorbell and motion notifications
+  onvif_events.subscribe(device, function(evt)
+    if evt == "VisitorAlarm" then
+      event_handlers.handle_doorbell_press(device)
+    elseif evt == "MotionAlarm" then
+      event_handlers.handle_motion_trigger(device)
+    elseif evt == "TamperAlarm" then
+      device:emit_event(capabilities.tamperAlert.tamper("detected"))
+    end
+  end)
 end
 
 return M

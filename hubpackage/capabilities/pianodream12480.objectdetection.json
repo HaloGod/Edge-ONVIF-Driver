@@ -1,13 +1,13 @@
 {
-  "id": "pianodream12480.doorbell",
+  "id": "pianodream12480.objectDetection",
   "version": 1,
   "status": "proposed",
-  "name": "Custom Doorbell",
+  "name": "objectDetection",
   "attributes": {
-    "button": {
+    "detection": {
       "schema": {
         "type": "string",
-        "enum": ["pressed"]
+        "enum": ["none", "motion", "person", "animal", "vehicle"]
       }
     }
   },

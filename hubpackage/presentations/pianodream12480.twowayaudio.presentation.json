@@ -1,0 +1,26 @@
+{
+  "dashboard": {
+    "states": [
+      {
+        "component": "main",
+        "capability": "pianodream12480.twoWayAudio",
+        "version": 1,
+        "values": [
+          { "key": "switch:on", "label": "Audio On" },
+          { "key": "switch:off", "label": "Audio Off" }
+        ]
+      }
+    ],
+    "actions": []
+  },
+  "detailView": [
+    {
+      "component": "main",
+      "capability": "pianodream12480.twoWayAudio",
+      "version": 1,
+      "presentationType": "toggleSwitch"
+    }
+  ],
+  "id": "pianodream12480.twoWayAudio",
+  "version": 1
+}

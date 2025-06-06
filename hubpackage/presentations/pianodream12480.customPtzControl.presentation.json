@@ -1,0 +1,47 @@
+{
+  "dashboard": {
+    "states": [],
+    "actions": [
+      {
+        "component": "main",
+        "capability": "pianodream12480.customPtzControl",
+        "version": 1,
+        "action": "left"
+      },
+      {
+        "component": "main",
+        "capability": "pianodream12480.customPtzControl",
+        "version": 1,
+        "action": "right"
+      },
+      {
+        "component": "main",
+        "capability": "pianodream12480.customPtzControl",
+        "version": 1,
+        "action": "up"
+      },
+      {
+        "component": "main",
+        "capability": "pianodream12480.customPtzControl",
+        "version": 1,
+        "action": "down"
+      }
+    ]
+  },
+  "detailView": [
+    {
+      "component": "main",
+      "capability": "pianodream12480.customPtzControl",
+      "version": 1,
+      "presentationType": "buttonGrid",
+      "buttons": [
+        { "label": "⬅️", "action": "left" },
+        { "label": "➡️", "action": "right" },
+        { "label": "⬆️", "action": "up" },
+        { "label": "⬇️", "action": "down" }
+      ]
+    }
+  ],
+  "id": "pianodream12480.customPtzControl",
+  "version": 1
+}

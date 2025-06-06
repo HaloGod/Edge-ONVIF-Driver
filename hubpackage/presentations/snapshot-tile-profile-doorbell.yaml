@@ -1,0 +1,25 @@
+name: snapshot-tile-profile-doorbell
+components:
+  - id: main
+    capabilities:
+      - id: videoStream
+        version: 1
+      - id: pianodream12480.doorbell
+        version: 1
+      - id: pianodream12480.onvifStatus
+        version: 1
+      - id: refresh
+        version: 1
+      - id: pianodream12480.twoWayAudio
+        version: 1
+      - id: pianodream12480.customChimeControl
+        version: 1
+      - id: pianodream12480.audioOutput
+        version: 1
+      - id: tamperAlert
+        version: 1
+metadata:
+  vid: baf61390-c4cb-3c88-b101-195b632c91ed
+  mnmn: SmartThingsCommunity
+  deviceType: VideoDoorbell
+  ocfDeviceType: oic.d.doorbell

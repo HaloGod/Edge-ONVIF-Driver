@@ -1,0 +1,8 @@
+{
+  "label": "Reolink Doorbell",
+  "lan": {
+    "networkId": "10.0.0.72",
+    "rtspPath": "rtsp://10.0.0.72:554/h264Preview_01_main",
+    "rtspPort": 554
+  }
+}

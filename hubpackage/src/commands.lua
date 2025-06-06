@@ -27,7 +27,10 @@ function M.get_stream_url(device, bypass_nvr)
   local channel = device:get_field("nvr_channel") or 0
 
   local function build_rtsp(ip, ch, stream)
-    return string.format("rtsp://%s:%s@%s:554/Preview_%02d_%s", username, password, ip, ch, stream)
+    -- Reolink cameras, including the doorbell, expect the path
+    -- 'h264Preview_XX_<stream>'. Previous versions used 'Preview',
+    -- which failed for some models.
+    return string.format("rtsp://%s:%s@%s:554/h264Preview_%02d_%s", username, password, ip, ch, stream)
   end
 
   -- Try NVR stream first unless direct access was requested

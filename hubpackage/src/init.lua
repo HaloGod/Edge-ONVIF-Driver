@@ -39,20 +39,6 @@ local function emit_video_stream(device)
   -- Example: map NVR channel X to virtual device and update its tile too (deferred, pending prototype validation)
 end
 
--- Trigger snapshot on doorbell ring (if motion doesn't catch it)
-local function handle_doorbell_press(device)
-  if config.EMIT_STANDARD_EVENTS then
-    device:emit_event(capabilities.button.button.pushed({ state_change = true }))
-    log.info("🔔 Standard doorbell event emitted for SmartThings TV/Fridge")
-  end
-  if config.EMIT_CUSTOM_EVENTS then
-    device:emit_event(cap_doorbell.button("pressed"))
-    log.info("🔔 Custom doorbell event emitted")
-  end
-
-  -- Always refresh snapshot on button press to update tile view
-  commands.refresh_snapshot(device)
-end
 
 -- Lifecycle Init
 local function init_device(driver, device)

@@ -66,8 +66,15 @@ function M.handle_doorbell_press(device)
     device:emit_event(capabilities["pianodream12480.doorbell"].button("pressed"))
   end
 
-  -- Always refresh snapshot to update tile (even if motion missed it)
-  commands.refresh_snapshot(device)
+  -- Always refresh snapshot using direct camera connection
+  commands.refresh_snapshot(device, true)
+
+  -- Emit direct stream URL for PIP or notifications
+  local stream_url = commands.get_stream_url(device, true)
+  device:emit_event(capabilities.videoStream.stream({
+    url = stream_url,
+    protocol = "rtsp"
+  }))
 end
 
 -- Motion Detected → Trigger Snapshot

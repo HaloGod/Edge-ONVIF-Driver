@@ -15,6 +15,13 @@ M.STATIC_IP_LIST = {
   -- "10.0.0.20"
 }
 
+-- Optional subnets to actively scan for Reolink devices
+M.REOLINK_SUBNETS = {
+  -- "192.168.1",
+  -- "10.0.0"
+}
+M.REOLINK_SCAN_ENABLED = false
+
 -- Use NVR for Stream Relay (with fallback if needed)
 M.USENVRSTREAM = true
 M.NVR_IP = "10.0.0.67"

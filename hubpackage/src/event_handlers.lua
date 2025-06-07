@@ -67,10 +67,12 @@ function M.handle_doorbell_press(device)
   end
 
   -- Always refresh snapshot to update tile (even if motion missed it)
-  commands.refresh_snapshot(device)
+  -- Bypass NVR so the snapshot comes directly from the doorbell camera
+  commands.refresh_snapshot(device, true)
   -- Emit stream URL to trigger PIP on supported TVs/Fridge
+  -- Bypass the NVR for realtime doorbell video
   device:emit_event(capabilities.videoStream.stream({
-    url = commands.get_stream_url(device),
+    url = commands.get_stream_url(device, true),
     protocol = "rtsp"
   }))
 end

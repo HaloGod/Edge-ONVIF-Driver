@@ -1,7 +1,77 @@
 -- common.lua (Utility Functions with Support for Capability Detection and Robust XML Handling)
 
 local log = require "log"
-local lom = require "lxp.lom"
+-- lxp.lom is not available in the Edge environment. Implement a
+-- lightweight XML parser in pure Lua to avoid the dependency while
+-- retaining a similar table structure.
+
+-- Parse attributes from a tag into a table
+local function parse_attrs(attr_str)
+  local attrs = {}
+  string.gsub(attr_str, "([%w_:.-]+)%s*=%s*\"(.-)\"", function(k, v)
+    attrs[k] = v
+  end)
+  return attrs
+end
+
+-- Very small XML to Lua table converter supporting the subset of XML
+-- returned by Reolink/ONVIF APIs. It is not a full XML parser but is
+-- sufficient for discovery/event messages.
+local function parse_xml(xml)
+  local stack = {{}}
+  local top = stack[#stack]
+  local pos = 1
+
+  while true do
+    local start, finish, closing, tag, attrs, empty = xml:find("<(%/?)([%w:._-]+)(.-)(%/?)>", pos)
+    if not start then break end
+
+    local text = xml:sub(pos, start - 1)
+    if text:match("%S") then
+      local cur = stack[#stack]
+      cur._text = (cur._text or "") .. text
+    end
+
+    if empty == "/" then
+      local node = { _attr = parse_attrs(attrs) }
+      local cur = stack[#stack]
+      if cur[tag] == nil then
+        cur[tag] = node
+      else
+        if cur[tag][1] == nil then
+          cur[tag] = { cur[tag], node }
+        else
+          table.insert(cur[tag], node)
+        end
+      end
+    elseif closing == "" then
+      local node = { _attr = parse_attrs(attrs) }
+      local cur = stack[#stack]
+      if cur[tag] == nil then
+        cur[tag] = node
+      else
+        if cur[tag][1] == nil then
+          cur[tag] = { cur[tag], node }
+        else
+          table.insert(cur[tag], node)
+        end
+      end
+      table.insert(stack, node)
+    else
+      table.remove(stack)
+    end
+
+    pos = finish + 1
+  end
+
+  local text = xml:sub(pos)
+  if text:match("%S") then
+    local cur = stack[#stack]
+    cur._text = (cur._text or "") .. text
+  end
+
+  return stack[1]
+end
 
 local M = {}
 
@@ -18,37 +88,12 @@ end
 
 -- Convert XML string to Lua table
 function M.xml_to_table(xml_str)
-  local handler = {}
-
-  function handler:StartElement(tag, attr)
-    local t = { _attr = attr }
-    table.insert(self.stack[#self.stack], { [tag] = t })
-    table.insert(self.stack, t)
+  local ok, result = pcall(parse_xml, xml_str)
+  if not ok then
+    log.error("XML parsing error: " .. tostring(result))
+    return nil
   end
-
-  function handler:EndElement()
-    table.remove(self.stack)
-  end
-
-  function handler:CharacterData(text)
-    if text:match("^%s*$") then return end
-    local current = self.stack[#self.stack]
-    current._text = (current._text or "") .. text
-  end
-
-  function M.parse(xml)
-    local parser = lom.new(handler)
-    handler.stack = {{} }
-    local ok, err = pcall(parser.parse, parser, xml)
-    if not ok then
-      log.error("XML parsing error: " .. err)
-      return nil
-    end
-    parser:close()
-    return handler.stack[1][1]
-  end
-
-  return M.parse(xml_str)
+  return result
 end
 
 -- Check deeply for a key path

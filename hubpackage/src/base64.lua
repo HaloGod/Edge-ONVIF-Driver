@@ -20,16 +20,17 @@ if not extract then
             return band(shr(v, from), shl(1, width) - 1)
         end
     elseif _G._VERSION == "Lua 5.1" then
+        local floor = math.floor
         extract = function(v, from, width)
             local w = 0
             for i = from, from + width - 1 do
-                w = w + (((v // 2^i) % 2) * 2^(i - from))
+                w = w + (((floor(v / 2^i)) % 2) * 2^(i - from))
             end
             return w
         end
     else
         extract = function(v, from, width)
-            return (v >> from) & ((1 << width) - 1)
+            return math.floor(v / 2^from) % 2^width
         end
     end
 end

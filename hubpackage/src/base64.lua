@@ -24,7 +24,7 @@ if not extract then
         extract = function(v, from, width)
             local w = 0
             for i = from, from + width - 1 do
-                w = w + (((math.floor(v / 2^i)) % 2) * 2^(i - from))
+            return math.floor(v / 2^from) % 2^width
             end
             return w
         end

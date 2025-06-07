@@ -21,7 +21,6 @@ end
 -- Detect bitwise operation support
 local bit32
 local has_bit32 = pcall(function() bit32 = require "bit32" end)
-local has_lua53 = _VERSION:match("Lua%s+5%.3") or _VERSION:match("Lua%s+5%.4")
 
 -- Optimized bytes_to_uint32 with bitwise operations if available
 if has_bit32 then
@@ -40,23 +39,6 @@ if has_bit32 then
             error("Invalid byte values")
         end
         return bit32.bor(bit32.lshift(a, 24), bit32.lshift(b, 16), bit32.lshift(c, 8), d)
-    end
-elseif has_lua53 then
-    --- Converts four bytes into a uint32 number using Lua 5.3+ bitwise operators.
-    -- @param a First byte (most significant)
-    -- @param b Second byte
-    -- @param c Third byte
-    -- @param d Fourth byte (least significant)
-    -- @return uint32 number
-    -- @raise Error if inputs are not integers or out of byte range (0-255)
-    function common.bytes_to_uint32(a, b, c, d)
-        if not (type(a) == "number" and type(b) == "number" and type(c) == "number" and type(d) == "number") or
-           not (a % 1 == 0 and b % 1 == 0 and c % 1 == 0 and d % 1 == 0) or
-           not (a >= 0 and a <= 255 and b >= 0 and b <= 255 and c >= 0 and c <= 255 and d >= 0 and d <= 255) then
-            log.error("bytes_to_uint32: Invalid input - must be integers between 0 and 255")
-            error("Invalid byte values")
-        end
-        return (a << 24) | (b << 16) | (c << 8) | d
     end
 else
     --- Converts four bytes into a uint32 number using arithmetic (pure Lua fallback).
@@ -92,22 +74,6 @@ if has_bit32 then
         local a2 = bit32.band(bit32.rshift(a, 16), 0xff)
         local a3 = bit32.band(bit32.rshift(a, 8), 0xff)
         local a4 = bit32.band(a, 0xff)
-        return a1, a2, a3, a4
-    end
-elseif has_lua53 then
-    --- Splits a uint32 number into four bytes using Lua 5.3+ bitwise operators.
-    -- @param a uint32 number
-    -- @return Four bytes (a1 most significant, a4 least significant)
-    -- @raise Error if input is not an integer or out of uint32 range (0 to 4294967295)
-    function common.uint32_to_bytes(a)
-        if type(a) ~= "number" or a % 1 ~= 0 or a < 0 or a > 4294967295 then
-            log.error("uint32_to_bytes: Invalid input - must be an integer between 0 and 4294967295")
-            error("Invalid uint32 value")
-        end
-        local a1 = a >> 24
-        local a2 = (a >> 16) & 0xff
-        local a3 = (a >> 8) & 0xff
-        local a4 = a & 0xff
         return a1, a2, a3, a4
     end
 else

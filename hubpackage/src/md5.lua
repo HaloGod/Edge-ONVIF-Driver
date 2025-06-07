@@ -40,18 +40,54 @@ local md5 = {
 
 local log = require "log" -- Assuming log is available in Edge-ONVIF-Driver
 local char, byte, format, rep, sub = string.char, string.byte, string.format, string.rep, string.sub
-local lua_version = tonumber(_VERSION:match("%d%.*%d*"))
-local bit_ops_available = lua_version >= 5.3 and bit32 == nil
+local bit32_available, bit32 = pcall(require, "bit32")
 
-local function _bit_or(a, b) return bit_ops_available and (a | b) or _bit_or(a, b) end
-local function _bit_and(a, b) return bit_ops_available and (a & b) or _bit_and(a, b) end
-local function _bit_not(a) return bit_ops_available and (~a) or _bit_not(a) end
-local function _bit_xor(a, b) return bit_ops_available and (a ~ b) or _bit_xor(a, b) end
-local function _bit_rshift(a, b) return bit_ops_available and (a >> b) or _bit_rshift(a, b) end
-local function _bit_lshift(a, b) return bit_ops_available and (a << b) or _bit_lshift(a, b) end
+local function _bit_or(a, b)
+    if bit32_available then return bit32.bor(a, b) end
+    local res, pow = 0, 1
+    for _ = 0, 31 do
+        if (a % 2 == 1) or (b % 2 == 1) then res = res + pow end
+        a = math.floor(a / 2)
+        b = math.floor(b / 2)
+        pow = pow * 2
+    end
+    return res
+end
+
+local function _bit_and(a, b)
+    if bit32_available then return bit32.band(a, b) end
+    local res, pow = 0, 1
+    for _ = 0, 31 do
+        if (a % 2 == 1) and (b % 2 == 1) then res = res + pow end
+        a = math.floor(a / 2)
+        b = math.floor(b / 2)
+        pow = pow * 2
+    end
+    return res
+end
+
+local function _bit_not(a)
+    if bit32_available then return bit32.bnot(a) end
+    return 0xFFFFFFFF - a
+end
+
+local function _bit_xor(a, b)
+    if bit32_available then return bit32.bxor(a, b) end
+    return _bit_or(_bit_and(a, _bit_not(b)), _bit_and(_bit_not(a), b))
+end
+
+local function _bit_rshift(a, b)
+    if bit32_available then return bit32.rshift(a, b) end
+    return math.floor(a / 2^b)
+end
+
+local function _bit_lshift(a, b)
+    if bit32_available then return bit32.lshift(a, b) end
+    return (a * 2^b) % 2^32
+end
 
 local tobit = function(n)
-    return n <= 0x7fffffff and n or -(bit_not(n) + 1)
+    return n <= 0x7fffffff and n or -(_bit_not(n) + 1)
 end
 
 local normalize = function(f)

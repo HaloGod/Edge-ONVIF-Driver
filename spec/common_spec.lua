@@ -5,14 +5,14 @@ describe('common module', function()
   it('parses xml into tables', function()
     local xml = '<root><child>text</child></root>'
     local t = common.xml_to_table(xml)
-    assert.are.equal('text', t.root[1]['child']._text)
+    assert.are.equal('text', t.root.child._text)
   end)
 
   it('checks element paths correctly', function()
     local xml = '<root><child>text</child></root>'
     local t = common.xml_to_table(xml)
-    assert.is_true(common.is_element(t, {'root', 1, 'child'}))
-    assert.is_false(common.is_element(t, {'root', 2}))
+    assert.is_true(common.is_element(t, {'root', 'child'}))
+    assert.is_false(common.is_element(t, {'root', 'missing'}))
   end)
 
   it('retries actions until success', function()
